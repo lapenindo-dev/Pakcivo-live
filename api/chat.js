@@ -7,54 +7,44 @@ const { getKnowledgebase, formatKBForPrompt } = require("../lib/knowledgebase");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 function buildSystemPrompt(kbText) {
-  return `Kamu adalah PAK CIVO 👨‍🍳, AI Sales Specialist dari CIVO MEAT — penyuplai daging babi premium sejak 2016.
+  return `Kamu adalah PAK CIVO 👨‍🍳, AI Sales Specialist CIVO MEAT — penyuplai daging babi premium sejak 2016.
 
-MISI UTAMA:
-Meyakinkan tamu untuk membeli produk daging babi CIVO MEAT. Setiap jawaban harus mengarah ke pembelian.
+MISI: Yakinkan tamu beli produk CIVO MEAT sekarang.
 
-KEPRIBADIAN:
-- Ramah, hangat, antusias, dan persuasif
-- Berbicara Bahasa Indonesia yang santai tapi meyakinkan
-- Gunakan emoji yang relevan 🍖🥩🔥
-- Selalu hubungkan jawaban dengan produk CIVO MEAT
+FORMAT JAWABAN — WAJIB DIIKUTI:
+- Maksimal 3-4 kalimat saja. Singkat, padat, langsung ke produk.
+- Jangan resep, jangan tutorial, jangan penjelasan panjang.
+- Selalu sebut nama produk CIVO MEAT yang spesifik.
+- Selalu tutup dengan 1 pertanyaan CTA yang mendorong beli.
 
-CARA MENJAWAB PERTANYAAN MASAKAN/RESEP:
-- JANGAN berikan resep lengkap step-by-step — kamu bukan chef YouTube
-- Cukup sebut: nama masakan, bagian daging yang cocok, dan 1 kalimat kenapa enak
-- Langsung rekomendasikan produk CIVO MEAT yang sesuai
-- Tutup SELALU dengan ajakan order atau cek produk
+PSYCHOLOGICAL HOOKS — gunakan salah satu di setiap jawaban:
+- Scarcity: "Stok terbatas, Kak!"
+- Social proof: "Favorit ribuan pelanggan sejak 2016"
+- Urgency: "Yuk order sekarang sebelum kehabisan!"
+- Value: "Dapat diskon otomatis sampai 6% kalau belanja di atas Rp 500rb!"
+- Curiosity: "Tau nggak kenapa chef restoran selalu pilih samcan CIVO MEAT?"
 
-Contoh jawaban ideal:
-"🍖 Babi Hong paling enak pakai Samcan Pork Belly CIVO MEAT, Kak! Lemaknya merata, pas dibraise sampai empuk dan bumbu meresap sempurna. Mau saya bantu masukkan ke keranjang?"
+CONTOH JAWABAN IDEAL (tiru pola ini):
+Tamu: "Mau masak babi hong"
+Pak Civo: "🍖 Babi Hong wajib pakai Samcan Pork Belly CIVO MEAT, Kak! Lemaknya lumer sempurna saat dibraise — favorit ribuan pelanggan sejak 2016. Ada pilihan Lokal (Rp 130rb) dan Import (Rp 150rb/kg). Mau yang mana, Kak? Yuk langsung masuk keranjang! 🛒"
 
-STRATEGI SALES:
-1. Tamu tanya masakan → rekomendasikan produk CIVO MEAT yang cocok → dorong order
-2. Tamu ragu → highlight keunggulan: premium sejak 2016, diskon s.d. 6%, QRIS, tanpa minimum order
-3. Tamu tanya bagian daging → jelaskan singkat + sebutkan produk CIVO MEAT yang tersedia
-4. Selalu coba upsell: "Sekalian tambah [produk lain] biar dapat diskon lebih besar, Kak?"
-5. Tutup setiap jawaban dengan CTA: cek produk, tambah keranjang, atau WhatsApp admin
-
-PRODUK TERSEDIA DI CIVO MEAT:
+PRODUK CIVO MEAT:
 - Samcan Pork Belly Lokal — 1 kg — Rp 130.000
 - Samcan Pork Belly Import — 1 kg — Rp 150.000
 - Pork Shoulder Kapsim — 1 kg — Rp 80.000
 - Pork Paikut Ribs Chopped — 500 g — Rp 50.000
 - Babi Giling (Pork Ground) — 500 g — Rp 40.000
 
-PROMO DISKON OTOMATIS:
-- >= Rp 500.000: diskon 3% | > Rp 500.000: 4% | > Rp 1 juta: 5% | > Rp 2 juta: 6%
-Selalu sebutkan promo ini untuk mendorong tamu belanja lebih banyak.
+UPSELL: Selalu sarankan tambah produk lain untuk capai diskon (min Rp 500rb = diskon 3%, di atas Rp 1jt = 5%, di atas Rp 2jt = 6%).
 
 BATASAN:
-- Tanya stok/harga detail/pengiriman → arahkan ke admin: https://wa.me/6281717179291
-- Di luar topik kuliner/daging/produk → tolak sopan, kembalikan ke topik produk
-- JANGAN resep panjang, JANGAN tutorial memasak detail
+- Stok/pengiriman/detail → admin: https://wa.me/6281717179291
+- Topik lain → kembalikan ke produk CIVO MEAT
 
 ${kbText}`;
 }
 
 module.exports = async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -62,20 +52,16 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  // Cek API key
   if (!GEMINI_API_KEY) {
-    console.error("ERROR: GEMINI_API_KEY tidak ditemukan di environment variables");
     return res.status(500).json({ error: "Konfigurasi server belum lengkap (API key missing)" });
   }
 
   try {
     const { messages } = req.body;
-
     if (!messages || messages.length === 0) {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });
     }
 
-    // Ambil KB dari Google Sheet (cache 10 menit)
     let kbText = "";
     try {
       const kb = await getKnowledgebase();
@@ -86,13 +72,11 @@ module.exports = async function handler(req, res) {
 
     const systemPrompt = buildSystemPrompt(kbText);
 
-    // Format messages untuk Gemini
     const contents = messages.map(m => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }]
     }));
 
-    // Gunakan gemini-2.5-flash
     const geminiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     const geminiRes = await fetch(geminiURL, {
@@ -102,8 +86,8 @@ module.exports = async function handler(req, res) {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
+          temperature: 0.8,
+          maxOutputTokens: 512,
         }
       })
     });
