@@ -230,62 +230,158 @@ const CONVERSATION_REPLIES = {
     "🥩 Halo Kak! Saya bisa bantu produk, harga, lokasi cabang, dan rekomendasi masakan. Mau mulai dari mana?",
     "🔥 Hai Kak! Sedang cari bahan untuk BBQ, masakan rumah, atau usaha kuliner?",
     "🥓 Halo! Kalau Kakak belum yakin mau pilih apa, saya bisa bantu rekomendasikan produk yang paling cocok.",
-    "👨‍🍳 Selamat datang di CIVO MEAT, Kak. Mau lihat produk populer atau langsung simulasi order?"
+    "👨‍🍳 Selamat datang di CIVO MEAT, Kak. Mau lihat produk populer atau langsung simulasi order?",
+    "🥩 Halo Kak! Produk seperti pork belly dan paikut sering dicari pelanggan. Mau saya bantu jelaskan pilihannya?",
+    "🔥 Hai Kak! Sebutkan mau masak apa, nanti saya bantu arahkan produk yang pas.",
+    "👨‍🍳 Halo Kak! Saya Pak Civo, siap bantu dari pilih produk sampai lanjut order via WhatsApp.",
+    "🥓 Halo Kak! Butuh produk untuk rumah tangga atau stok usaha hari ini?",
+    "🥩 Hai Kak! Mau cari berdasarkan produk, budget, atau lokasi cabang terdekat?"
   ],
   thanks: [
     "Sama-sama Kak 😊 Kalau sudah cocok, saya bisa bantu lanjutkan ke simulasi order.",
     "Dengan senang hati, Kak. Mau saya bantu pilih produk lain yang cocok sekalian?",
     "Sama-sama! Kalau perlu, saya bisa bantu cari cabang CIVO MEAT terdekat juga.",
-    "Terima kasih kembali Kak. Mau lanjut lihat produk favorit pelanggan?"
+    "Terima kasih kembali Kak. Mau lanjut lihat produk favorit pelanggan?",
+    "Siap Kak 😊 Kalau ingin cepat, sebutkan produk yang mau dipesan.",
+    "Sama-sama Kak! Saya siap bantu sampai Kakak siap order via WhatsApp.",
+    "Senang bisa membantu. Ada produk lain yang ingin dibandingkan?",
+    "Terima kasih kembali Kak. Mau saya bantu rekomendasikan untuk menu tertentu?"
   ],
   confirm: [
     "Siap Kak. Mau lanjut lihat produk atau langsung simulasi order?",
     "Baik Kak. Saya bantu langkah berikutnya, mau cari produk apa?",
-    "Oke Kak 😊 Produk mana yang ingin Kakak cek dulu?"
+    "Oke Kak 😊 Produk mana yang ingin Kakak cek dulu?",
+    "Siap. Kalau Kakak mau, saya bisa bantu rekomendasikan berdasarkan masakan.",
+    "Baik Kak. Mau saya tampilkan pilihan produk yang tersedia?",
+    "Oke, Kak. Sebutkan kebutuhan Kakak, nanti saya bantu arahkan.",
+    "Siap Kak! Mau cari cabang, harga, atau produk?",
+    "Baik. Kalau ingin cepat, tuliskan nama produk yang Kakak mau."
   ],
   positive: [
     "Mantap Kak! Kalau sudah cocok, kita bisa lanjut pilih produk dan jumlahnya.",
     "Keren Kak 😊 Mau saya bantu buatkan simulasi order?",
-    "Bagus Kak! Produk CIVO MEAT bisa saya bantu arahkan sesuai kebutuhan masakannya."
+    "Bagus Kak! Produk CIVO MEAT bisa saya bantu arahkan sesuai kebutuhan masakannya.",
+    "Mantap! Kalau untuk BBQ atau keluarga, saya bisa bantu rekomendasikan kombinasi produk.",
+    "Sip Kak, senang dengarnya. Mau lanjut cek harga atau lokasi cabang?",
+    "Keren! Sekalian mau lihat produk populer yang sering dibeli pelanggan?"
   ]
 };
 
 const QUICK_TEMPLATE_REPLIES = {
   popular: [
-    "🔥 Produk paling sering dicari pelanggan CIVO MEAT:\n\n🥓 Samcan Pork Belly Lokal — Rp 130rb/kg\n🥩 Samcan Pork Belly Import — Rp 150rb/kg\n🍖 Pork Paikut Ribs Chopped — Rp 50rb/500g\n\nFavorit ribuan pelanggan sejak 2016! Mau saya bantu masukkan ke keranjang, Kak? 🛒"
+    `🔥 Produk yang paling sering dicari pelanggan CIVO MEAT:
+
+🥓 Samcan Pork Belly Lokal
+🥩 Samcan Pork Belly Import
+🍖 Pork Paikut Ribs Chopped
+
+Mau saya bantu cek pilihan dan hitung total belanjanya, Kak?`,
+    `🥩 Ini produk yang paling banyak ditanyakan pelanggan:
+
+• Samcan Pork Belly Lokal — 1 kg — Rp 130.000
+• Samcan Pork Belly Import — 1 kg — Rp 150.000
+• Pork Paikut Ribs Chopped — 500 g — Rp 50.000
+
+Kakak mau mulai dari yang mana?`
   ],
   promo: [
-    "💰 Diskon otomatis CIVO MEAT:\n\n✅ ≥ Rp 500rb → diskon 3%\n✅ > Rp 500rb → diskon 4%\n✅ > Rp 1 juta → diskon 5%\n✅ > Rp 2 juta → diskon 6%\n\nYuk susun belanjaan Kakak sekarang biar dapat diskon maksimal! 🎉"
+    `💰 Promo belanja CIVO MEAT saat ini berupa diskon otomatis berdasarkan total belanja:
+
+• Rp 500.000 tepat: diskon 3%
+• Rp 500.001–Rp 1.000.000: diskon 4%
+• Rp 1.000.001–Rp 2.000.000: diskon 5%
+• Di atas Rp 2.000.000: diskon 6%
+
+Mau saya bantu susun order supaya bisa masuk tier diskon, Kak?`,
+    `💰 Diskon otomatis aktif saat total belanja mencapai Rp 500.000 ke atas, Kak.
+
+Kalau Kakak sebutkan kebutuhan masakan atau jumlah orang, saya bantu rekomendasikan kombinasi produk yang pas.`
   ],
   favorites: [
-    "⭐ Favorit pelanggan CIVO MEAT:\n\n🥓 Samcan Pork Belly Lokal — juicy, lemak sempurna\n🥩 Samcan Pork Belly Import — layer konsisten\n🍖 Pork Paikut Ribs Chopped — cocok sup & braised\n\nStok terbatas! Mau pilih yang mana, Kak? 🛒"
+    `🥓 Favorit pelanggan CIVO MEAT biasanya:
+
+🥓 Samcan Pork Belly Lokal — juicy, lemak lebih banyak
+🥩 Samcan Pork Belly Import — layer lebih konsisten
+🍖 Pork Paikut Ribs Chopped — cocok untuk sup paikut/braised
+
+Mau saya bantu pilih berdasarkan menu yang Kakak mau masak?`,
+    `⭐ Pilihan favorit pelanggan:
+
+• Samcan Pork Belly Lokal
+• Samcan Pork Belly Import
+• Pork Paikut Ribs Chopped
+
+Ketiganya enak untuk menu keluarga maupun acara makan bersama. Mau lihat detail harga?`
   ],
   recommendation: [
-    "👨‍🍳 Rekomendasi Pak Civo untuk mulai:\n\n1. Samcan Pork Belly Lokal — 1 kg — Rp 130.000\n2. Pork Paikut Ribs Chopped — 500 g — Rp 50.000\n3. Babi Giling — 500 g — Rp 40.000\n\nKombinasi ini paling sering dibeli! Sekalian dapat diskon kalau total di atas Rp 500rb, Kak 😊"
+    `👨‍🍳 Rekomendasi Pak Civo untuk mulai belanja:
+
+1. Samcan Pork Belly Lokal — 1 kg — Rp 130.000
+2. Pork Paikut Ribs Chopped — 500 g — Rp 50.000
+3. Babi Giling — 500 g — Rp 40.000
+
+Kalau Kakak mau, saya bisa bantu susun paket sesuai menu dan budget.`,
+    `👨‍🍳 Kalau Kakak belum tahu mau pilih apa, saya bisa bantu dari jenis masakan dulu.
+
+Mau masak sup, BBQ, char siu/roast, dumpling/siomay, atau stok rumah?`
   ],
   bbq: [
-    "🔥 Untuk BBQ, Samcan Pork Belly CIVO MEAT adalah pilihan nomor satu pelanggan! Lemaknya merata, pas untuk dipanggang sampai karamel.\n\nLokal Rp 130rb/kg atau Import Rp 150rb/kg. BBQ untuk berapa orang, Kak? Saya bantu hitung kebutuhannya! 🍖"
+    `🍖 Untuk BBQ, produk yang sering dipilih pelanggan adalah Samcan Pork Belly Lokal atau Import.
+
+Kalau Kakak sebutkan jumlah orang, saya bantu hitung perkiraan kebutuhan dan total belanjanya.`,
+    `🔥 Mau BBQ? Saya bisa bantu susun pilihan produk yang cocok dari pork belly lokal/import.
+
+BBQ-nya untuk berapa orang, Kak?`
   ],
   nearestBranch: [
-    "🏪 Cabang CIVO MEAT: Tangerang, Serpong, Jakarta Barat, Jakarta Pusat, Sunter, Bandung, Semarang, dan Surabaya.\n\nKakak di area mana? Saya share alamat lengkap dan Google Maps-nya! 📍"
+    `🏪 CIVO MEAT punya beberapa cabang: Tangerang Pusat, Serpong, Jakarta Barat, Jakarta Pusat, Sunter/Jakarta Utara, Bandung, Semarang, dan Surabaya.
+
+Kakak berada di kota/area mana? Nanti saya share alamat, Google Maps, dan nomor WA cabang terdekat.`,
+    "📍 Bisa, Kak. Sebutkan kota/area Kakak, misalnya Bandung, Surabaya, Semarang, Serpong, Tangerang, Jakarta Barat, Jakarta Pusat, atau Sunter. Saya bantu arahkan ke cabang terdekat."
   ],
   delivery: [
-    "🚚 Pengiriman tersedia di Jabodetabek, Bandung, Semarang, dan Surabaya via Grab/Gojek/kurir.\n\nSame day order sebelum jam 14.00, instant sebelum jam 16.00. Kakak mau kirim ke area mana? 😊"
+    `🚚 Area layanan utama CIVO MEAT: Jabodetabek, Bandung, Semarang, dan Surabaya.
+
+Ongkir dihitung sesuai jarak via Grab/Gojek/kurir yang tersedia saat order. Same day maksimal order jam 14.00, instant maksimal jam 16.00.`,
+    `🚚 Pengiriman bisa melalui layanan yang tersedia sesuai area. Ongkir dihitung otomatis berdasarkan jarak saat checkout/order.
+
+Kakak mau kirim ke area mana?`
   ],
   allProducts: [
-    "📦 Katalog CIVO MEAT:\n\n1. Samcan Pork Belly Lokal — 1 kg — Rp 130.000\n2. Samcan Pork Belly Import — 1 kg — Rp 150.000\n3. Pork Shoulder Kapsim — 1 kg — Rp 80.000\n4. Pork Paikut Ribs Chopped — 500 g — Rp 50.000\n5. Babi Giling — 500 g — Rp 40.000\n\nBelanja di atas Rp 500rb langsung dapat diskon! Mau order yang mana, Kak? 🛒"
+    `📦 Produk CIVO MEAT yang tersedia:
+
+1. Samcan Pork Belly Lokal — 1 kg — Rp 130.000
+2. Babi Giling — 500 g — Rp 40.000
+3. Pork Shoulder Kapsim — 1 kg — Rp 80.000
+4. Pork Paikut Ribs Chopped — 500 g — Rp 50.000
+5. Samcan Pork Belly Import — 1 kg — Rp 150.000
+
+Mau saya bantu pilih berdasarkan menu Kakak?`,
+    `📦 Katalog singkat CIVO MEAT: pork belly lokal/import, babi giling, pork shoulder kapsim, dan paikut ribs chopped.
+
+Kakak mau cari untuk menu apa?`
   ],
   admin: [
-    "💬 Hubungi admin CIVO MEAT langsung di https://wa.me/6281717179291\n\nMau saya bantu susun order dulu biar tinggal kirim ke admin? 😊"
+    `💬 Untuk bantuan langsung, Kakak bisa WhatsApp admin CIVO MEAT di https://wa.me/6281717179291.
+
+Kalau mau, saya juga bisa bantu susun isi order dulu supaya tinggal kirim ke admin.`,
+    `💬 Siap Kak. Admin utama CIVO MEAT bisa dihubungi di https://wa.me/6281717179291.
+
+Sebelum lanjut WA, saya bisa bantu cek produk dan total belanja dulu.`
   ]
 };
 
 const SALES_HOOKS = [
-  "Stok terbatas, Kak — yuk order sekarang sebelum kehabisan! 🔥",
-  "Favorit ribuan pelanggan sejak 2016. Kakak mau coba juga? 😊",
-  "Belanja di atas Rp 500rb langsung dapat diskon otomatis, Kak! 🎉",
-  "Mau saya bantu masukkan ke keranjang sekarang, Kak? 🛒",
-  "Produk ini paling sering habis duluan — jangan sampai kehabisan ya, Kak!"
+  "Kalau Kakak mau, saya bisa bantu rekomendasikan produk yang paling cocok untuk menu hari ini.",
+  "Untuk proses cepat, Kakak bisa sebutkan produk dan jumlahnya, nanti saya bantu susun order.",
+  "Banyak customer memilih berdasarkan menu masakan; Kakak mau masak apa hari ini?",
+  "Kalau untuk acara keluarga atau BBQ, saya bisa bantu pilih kombinasi produk yang pas.",
+  "Saya juga bisa bantu arahkan ke cabang terdekat lengkap dengan Google Maps.",
+  "Kalau Kakak punya budget tertentu, saya bantu carikan opsi yang paling sesuai.",
+  "Jika sudah cocok, kita bisa lanjutkan ke WhatsApp order dengan mudah.",
+  "Mau saya tampilkan produk yang tersedia supaya Kakak bisa pilih lebih cepat?",
+  "Kalau masih bingung, cukup sebutkan mau masak apa; saya bantu pilihkan bahannya.",
+  "Saya bisa bantu cek total belanja dan info diskon otomatis juga, Kak."
 ];
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -466,14 +562,11 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
-// ✅ UPDATED: render **bold** dan *italic* dari Gemini
+// ✅ Render **bold**, *italic*, dan links dari Gemini
 function makeLinksClickable(text) {
   const escaped = escapeHtml(text);
-  // Render **bold**
   const withBold = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  // Render *italic*
   const withItalic = withBold.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-  // Render links
   return withItalic.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
     const cleanUrl = url.replace(/[.,;!?)]$/, "");
     const trailing = url.slice(cleanUrl.length);
