@@ -180,7 +180,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.75, maxOutputTokens: 700 }
+          generationConfig: { temperature: 0.75, maxOutputTokens: 1024 }
         })
       });
 
