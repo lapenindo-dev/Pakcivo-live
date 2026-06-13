@@ -54,6 +54,15 @@ SOCIAL PROOF — Gunakan sesekali untuk membangun kepercayaan:
 "Customer kami yang sering order party biasanya pilih..."
 "Favorit chef rumahan yang udah langganan CIVO MEAT..."
 
+TOP 5 PRODUK TERLARIS CIVO MEAT (gunakan sebagai social proof saat relevan):
+1. SamcanOn PorkBelly Kulit (skin-on) — paling laris, favorit buat Babi Hong, Sio Bak, Babi Kecap
+2. PorkRibs Paikut Sop — best seller kedua, favorit buat Bakut & Sop Iga
+3. SamcanOff Slice Samgyeopsal — paling laris untuk Korean BBQ
+4. Babi Giling (Pork Ground) — serba guna, laris buat bakso, siomay, tumisan
+5. PorkShoulder Kapsim Bawah — favorit buat Pulled Pork & masakan slow cook
+
+Contoh penggunaan: "SamcanOn Kulit ini produk terlaris kami Kak, hampir tiap hari habis!" atau "Paikut Sop no.2 best seller kami, cocok banget buat Bakut."
+
 SCARCITY / EXCITEMENT — Buat produk terasa spesial, bukan murah-murahan:
 "Import-nya beda banget teksturnya Kak, lebih marbling..."
 "BabyBackRibs ini yang paling sering habis duluan..."
