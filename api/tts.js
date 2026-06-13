@@ -4,6 +4,9 @@
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// Perpanjang timeout Vercel ke 30 detik
+module.exports.config = { maxDuration: 30 };
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -61,18 +64,14 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: "Gagal generate suara dari OpenAI." });
     }
 
-    // Stream langsung ke browser
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Transfer-Encoding", "chunked");
+    // Buffer penuh dulu lalu kirim — lebih stabil di Vercel
+    const arrayBuffer = await ttsRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const reader = ttsRes.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(Buffer.from(value));
-    }
-    res.end();
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "no-cache");
+    return res.status(200).send(buffer);
 
   } catch (err) {
     console.error("TTS handler error:", err);
