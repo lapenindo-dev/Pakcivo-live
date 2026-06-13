@@ -578,6 +578,34 @@ async function speakText(text, btn) {
 }
 // ───────────────────────────────────────────────────────────────
 
+// Fetch audio dari /api/tts — return Audio object siap play
+async function fetchAudio(text) {
+  const cleanText = text
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}]/gu, "")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/\*\*/g, "").replace(/\*/g, "")
+    .replace(/\s+/g, " ").trim().slice(0, 500); // batasi 500 char biar cepat
+  if (!cleanText) return null;
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: cleanText }),
+  });
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  return new Audio(url);
+}
+
+function playAudio(audio) {
+  if (!audio) return;
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  currentAudio = audio;
+  audio.play().catch(() => {});
+  audio.onended = () => { currentAudio = null; };
+}
+
 function addMsg(role, content) {
   const div = document.createElement("div");
   div.className = "msg " + (role === "user" ? "user" : "bot");
@@ -617,6 +645,8 @@ async function send() {
     const reply = withSalesHook(localReply);
     messages.push({ role: "assistant", content: reply });
     addMsg("bot", reply);
+    // Fetch & play audio paralel — masih dalam konteks gesture tap
+    fetchAudio(reply).then(audio => playAudio(audio));
     return;
   }
 
@@ -636,13 +666,27 @@ async function send() {
       return;
     }
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, cartContext, captchaToken }),
-    });
+    // Jalankan chat & TTS paralel
+    const [chatRes, _] = await Promise.all([
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages, cartContext, captchaToken }),
+      }),
+      // Unlock AudioContext dengan silent audio — agar auto play diizinkan
+      (async () => {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(ctx.destination);
+          src.start(0);
+        } catch(_) {}
+      })()
+    ]);
 
-    const raw = await res.text();
+    const raw = await chatRes.text();
     let data = null;
     try { data = JSON.parse(raw); } catch (_) {}
 
@@ -653,10 +697,12 @@ async function send() {
       const visible = applyCartActions(data.reply);
       messages.push({ role: "assistant", content: visible });
       addMsg("bot", visible);
+      // Fetch & play audio — masih dalam konteks gesture tap kirim
+      fetchAudio(visible).then(audio => playAudio(audio));
     } else if (data && data.error) {
       addMsg("bot", data.error);
     } else {
-      console.error("Non-JSON response:", res.status, raw.slice(0, 300));
+      console.error("Non-JSON response:", chatRes.status, raw.slice(0, 300));
       addMsg("bot", "Maaf Kak, ada gangguan sebentar. Coba kirim lagi ya! 🙏");
     }
   } catch (e) {
