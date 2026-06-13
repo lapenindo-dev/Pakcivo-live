@@ -1,11 +1,155 @@
 // api/tts.js
 // Vercel Serverless Function — OpenAI TTS
-// Lebih murah & lebih cepat dari ElevenLabs
+// Text chat tetap normal, tapi teks suara dinormalisasi agar bahasa Indonesia lebih natural.
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-// Perpanjang timeout Vercel ke 30 detik
 module.exports.config = { maxDuration: 30 };
+
+function cleanDoubleSpaces(text) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function numberToWords(num) {
+  num = parseInt(num || 0, 10);
+
+  const angka = [
+    "",
+    "satu",
+    "dua",
+    "tiga",
+    "empat",
+    "lima",
+    "enam",
+    "tujuh",
+    "delapan",
+    "sembilan",
+    "sepuluh",
+    "sebelas",
+  ];
+
+  if (num === 0) return "nol";
+  if (num < 12) return angka[num];
+  if (num < 20) return cleanDoubleSpaces(numberToWords(num - 10) + " belas");
+  if (num < 100) return cleanDoubleSpaces(numberToWords(Math.floor(num / 10)) + " puluh " + numberToWords(num % 10));
+  if (num < 200) return cleanDoubleSpaces("seratus " + numberToWords(num - 100));
+  if (num < 1000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 100)) + " ratus " + numberToWords(num % 100));
+  if (num < 2000) return cleanDoubleSpaces("seribu " + numberToWords(num - 1000));
+  if (num < 1000000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000)) + " ribu " + numberToWords(num % 1000));
+  if (num < 1000000000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000000)) + " juta " + numberToWords(num % 1000000));
+  return num.toString();
+}
+
+function decimalToWords(value) {
+  const str = String(value).replace(",", ".");
+  if (!str.includes(".")) return numberToWords(parseInt(str, 10));
+
+  const [whole, dec] = str.split(".");
+  const decimalWords = dec.split("").map((d) => numberToWords(parseInt(d, 10))).join(" ");
+  return cleanDoubleSpaces(`${numberToWords(parseInt(whole, 10))} koma ${decimalWords}`);
+}
+
+function normalizePhone(phone) {
+  return phone.replace(/\D/g, "").split("").join(" ");
+}
+
+function normalizeForSpeech(text) {
+  let t = text;
+
+  // Hapus URL dan kode internal cart
+  t = t.replace(/https?:\/\/\S+/gi, "");
+  t = t.replace(/www\.\S+/gi, "");
+  t = t.replace(/<<CART:[^>]+>>/g, "");
+
+  // Markdown dasar
+  t = t.replace(/\*\*/g, "");
+  t = t.replace(/\*/g, "");
+  t = t.replace(/_/g, " ");
+
+  // Singkatan umum
+  t = t.replace(/\bWA\b/gi, "WhatsApp");
+  t = t.replace(/\bTelp\.?\b/gi, "telepon");
+  t = t.replace(/\bCS\b/gi, "customer service");
+  t = t.replace(/\bBBQ\b/gi, "barbekyu");
+  t = t.replace(/\bskin on\b/gi, "skin on");
+  t = t.replace(/\bskin off\b/gi, "skin off");
+
+  // Harga: Rp117.000 / Rp 117,000 / IDR 117000
+  t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d\.\,]+)/gi, (_, amount) => {
+    const num = parseInt(String(amount).replace(/[^\d]/g, ""), 10);
+    if (isNaN(num)) return amount;
+    return `${numberToWords(num)} rupiah`;
+  });
+
+  // 117rb / 117 ribu
+  t = t.replace(/\b(\d+)\s*(rb|ribu)\b/gi, (_, n) => {
+    return `${numberToWords(parseInt(n, 10))} ribu`;
+  });
+
+  // 2jt / 2 juta
+  t = t.replace(/\b(\d+)\s*(jt|juta)\b/gi, (_, n) => {
+    return `${numberToWords(parseInt(n, 10))} juta`;
+  });
+
+  // 5.5M / 5,5M / 5.5 miliar
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m|miliar|milyar)\b/gi, (_, n) => {
+    return `${decimalToWords(n)} miliar`;
+  });
+
+  // Per kilogram: /kg
+  t = t.replace(/\/\s*kg\b/gi, " per kilogram");
+
+  // Berat dan satuan
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*kg\b/gi, (_, n) => `${decimalToWords(n)} kilogram`);
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*g\b/gi, (_, n) => `${decimalToWords(n)} gram`);
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*gr\b/gi, (_, n) => `${decimalToWords(n)} gram`);
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*ml\b/gi, (_, n) => `${decimalToWords(n)} mili liter`);
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*l\b/gi, (_, n) => `${decimalToWords(n)} liter`);
+
+  // Ukuran: 4.5x3.2x9 m
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*m\b/gi, (_, a, b, c) => {
+    return `${decimalToWords(a)} kali ${decimalToWords(b)} kali ${decimalToWords(c)} meter`;
+  });
+
+  // Meter persegi
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m2|m²)\b/gi, (_, n) => `${decimalToWords(n)} meter persegi`);
+
+  // Satuan produk
+  t = t.replace(/\b(\d+)\s*pcs\b/gi, (_, n) => `${numberToWords(n)} pieces`);
+  t = t.replace(/\b(\d+)\s*pc\b/gi, (_, n) => `${numberToWords(n)} piece`);
+  t = t.replace(/\b(\d+)\s*pack\b/gi, (_, n) => `${numberToWords(n)} pak`);
+  t = t.replace(/\b(\d+)\s*pax\b/gi, (_, n) => `${numberToWords(n)} orang`);
+  t = t.replace(/\b(\d+)\s*ekor\b/gi, (_, n) => `${numberToWords(n)} ekor`);
+
+  // Range angka: 2-3 jam
+  t = t.replace(/\b(\d+)\s*-\s*(\d+)\s*jam\b/gi, (_, a, b) => `${numberToWords(a)} sampai ${numberToWords(b)} jam`);
+
+  // Suhu: 63°C
+  t = t.replace(/\b(\d+)\s*°?\s*C\b/g, (_, n) => `${numberToWords(n)} derajat celcius`);
+
+  // Alamat: No.3 / No.29A
+  t = t.replace(/\bNo\.?\s*(\d+)([A-Za-z]?)\b/gi, (_, n, letter) => {
+    return cleanDoubleSpaces(`nomor ${numberToWords(n)} ${letter ? letter.toUpperCase() : ""}`);
+  });
+
+  // Blok H6 / KK-08
+  t = t.replace(/\bBlok\s+([A-Za-z]+)[-\s]?(\d+)\b/gi, (_, letters, n) => {
+    return `blok ${letters.toUpperCase()} ${numberToWords(n)}`;
+  });
+
+  // Nomor HP/WA dengan strip atau spasi
+  t = t.replace(/\b0[\d\s\-]{8,18}\b/g, (phone) => normalizePhone(phone));
+
+  // Persentase
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
+
+  // Bersihkan sisa simbol yang mengganggu suara
+  t = t.replace(/[•|]/g, ". ");
+  t = t.replace(/[<>]/g, "");
+  t = t.replace(/\s+/g, " ");
+
+  return cleanDoubleSpaces(t);
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,38 +165,35 @@ module.exports = async function handler(req, res) {
 
   try {
     const { text } = req.body;
+
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return res.status(400).json({ error: "Teks tidak boleh kosong." });
     }
 
-    // Bersihkan emoji, URL, markdown, dan karakter non-verbal
     const cleanText = text
       .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
       .replace(/[\u{2600}-\u{27BF}]/gu, "")
-      .replace(/https?:\/\/\S+/g, "")
-      .replace(/<<CART:[^>]+>>/g, "")
-      .replace(/\*\*/g, "")
-      .replace(/\*/g, "")
       .replace(/\s+/g, " ")
       .trim();
 
-    if (cleanText.length === 0) {
+    const speechText = normalizeForSpeech(cleanText);
+
+    if (speechText.length === 0) {
       return res.status(400).json({ error: "Teks kosong setelah dibersihkan." });
     }
 
-    // Batasi max 4096 karakter (limit OpenAI TTS)
-    const trimmed = cleanText.slice(0, 4096);
+    const trimmed = speechText.slice(0, 4096);
 
     const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "tts-1",        // tts-1 = latency rendah, tts-1-hd = kualitas lebih tinggi
+        model: "tts-1",
         input: trimmed,
-        voice: "sage",         // dalam, berwibawa — cocok untuk Pak Civo
+        voice: "nova",
         response_format: "mp3",
         speed: 1.0,
       }),
@@ -64,7 +205,6 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: "Gagal generate suara dari OpenAI." });
     }
 
-    // Buffer penuh dulu lalu kirim — lebih stabil di Vercel
     const arrayBuffer = await ttsRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -72,11 +212,11 @@ module.exports = async function handler(req, res) {
     res.setHeader("Content-Length", buffer.length);
     res.setHeader("Cache-Control", "no-cache");
     return res.status(200).send(buffer);
-
   } catch (err) {
     console.error("TTS handler error:", err);
+
     if (!res.headersSent) {
-      res.status(500).json({ error: "Server error." });
+      return res.status(500).json({ error: "Server error." });
     }
   }
 };
