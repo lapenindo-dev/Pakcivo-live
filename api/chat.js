@@ -34,11 +34,10 @@ Cocokkan area tamu dengan kolom "Area" di data cabang. Pilih 1 cabang terdekat s
 
 [PROMO / DISKON]
 Tier diskon yang BENAR:
-• Di bawah Rp 500rb → tidak ada diskon
-• Tepat Rp 500rb → diskon 3%
-• Rp 500.001–Rp 1jt → diskon 4%
-• Rp 1jt–Rp 2jt → diskon 5%
-• Di atas Rp 2jt → diskon 6%
+• Di bawah Rp 500.000 → tidak ada diskon
+• Rp 500.000 s/d Rp 999.999 → diskon 3%
+• Rp 1.000.000 s/d Rp 1.999.999 → diskon 5%
+• Rp 2.000.000 ke atas → diskon 6%
 Gunakan diskon sebagai motivasi upsell HANYA jika relevan.
 
 [STOK / PENGIRIMAN / HARGA RESELLER]
@@ -48,11 +47,38 @@ Gunakan diskon sebagai motivasi upsell HANYA jika relevan.
 Tolak sopan, kembalikan ke produk CIVO MEAT.
 
 === PRODUK CIVO MEAT ===
-• Samcan Pork Belly Lokal — 1 kg — Rp 130.000
-• Samcan Pork Belly Import — 1 kg — Rp 150.000
-• Pork Shoulder Kapsim — 1 kg — Rp 80.000
-• Pork Paikut Ribs Chopped — 500 g — Rp 50.000
+• SamcanOn PorkBelly Lokal — 1 kg — Rp 130.000
+• SamcanOn PorkBelly Lokal — 500g — Rp 65.000
+• SamcanOn PorkBelly Lokal Dadu — 500g — Rp 70.000
+• SamcanOn PorkBelly Lokal Whole 2kg — 2kg — Rp 260.000
+• SamcanOn PorkBelly Import — 1 kg — Rp 150.000
+• SamcanOn PorkBelly Import — 500g — Rp 75.000
+• PorkCollar Kapsim Kembang — 1kg — Rp 95.000
+• PorkCollar Kapsim Kembang — 500g — Rp 47.500
+• PorkShoulder Kapsim Bawah — 1 kg — Rp 82.000
+• PorkShoulder Kapsim Bawah — 500g — Rp 41.000
+• PorkShoulder Kapsim Bawah Dadu — 500g — Rp 46.000
+• PorkRibs Paikut Sop — 500 g — Rp 50.000
+• Pork SpareRibs Iga Barbeque — 1kg — Rp 100.000
+• Pork BabyBackRibs Iga Barbeque — 1kg — Rp 120.000
 • Babi Giling (Pork Ground) — 500 g — Rp 40.000
+• PorkLoin Karbonat — 1kg — Rp 90.000
+• Paha Babi — 1kg — Rp 80.000
+• Paha Babi — 500g — Rp 40.000
+• Paha Kulit — 1kg — Rp 80.000
+• SamcanOff PorkBelly Slice Lokal Tipis — 500g — Rp 65.000
+• SamcanOff PorkBelly Slice Lokal Tebal — 500g — Rp 65.000
+• SamcanOff PorkBelly Slice Import Tipis — 500g — Rp 80.000
+• SamcanOff PorkBelly Slice Import Tebal — 500g — Rp 80.000
+• PorkCollar Moksal KapsimKembang Lokal Slice Tipis — 500g — Rp 50.000
+• PorkCollar Moksal KapsimKembang Lokal Slice Tebal — 500g — Rp 50.000
+• PorkCollar Moksal KapsimKembang Import Slice Tipis — 500g — Rp 65.000
+• PorkCollar Moksal KapsimKembang Import Slice Tebal — 500g — Rp 65.000
+• PorkShoulder KapsimBawah Lokal Slice Tipis — 500g — Rp 55.000
+• PorkShoulder KapsimBawah Lokal Slice Tebal — 500g — Rp 55.000
+• PorkLoin Karbonat Slice — 500g — Rp 50.000
+• Paha Babi Slice Tipis — 500g — Rp 45.000
+• Paha Kulit Slice Tipis — 500g — Rp 45.000
 
 === DATA LENGKAP ===
 ${kbText}`;
