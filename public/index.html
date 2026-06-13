@@ -707,19 +707,29 @@ async function send() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages, cartContext, captchaToken }),
     });
-    const data = await res.json();
+
+    const raw = await res.text();
+    let data = null;
+    try { data = JSON.parse(raw); } catch (_) { /* non-JSON response from platform */ }
+
     resetCaptcha();
     typing.remove();
-    if (data.reply) {
+
+    if (data && data.reply) {
       const visible = applyCartActions(data.reply);
       messages.push({ role: "assistant", content: visible });
       addMsg("bot", visible);
+    } else if (data && data.error) {
+      addMsg("bot", data.error);
     } else {
-      addMsg("bot", data.error || "Maaf Kak, ada gangguan. Coba lagi ya!");
+      // Platform-level failure (Vercel error page, 404, timeout, firewall challenge, dll)
+      console.error("Non-JSON response from /api/chat:", res.status, raw.slice(0, 500));
+      addMsg("bot", `Maaf Kak, ada gangguan server (HTTP ${res.status}). Coba kirim lagi ya! 🙏\n\n[debug: ${raw.slice(0, 120).replace(/</g, "")}]`);
     }
   } catch (e) {
     typing.remove();
-    addMsg("bot", "Maaf Kak, koneksi bermasalah. Coba kirim lagi ya! 🙏");
+    console.error("Chat request failed:", e);
+    addMsg("bot", `Maaf Kak, koneksi bermasalah (${e && e.message ? e.message : "network error"}). Coba kirim lagi ya! 🙏`);
   }
   loading = false;
 }
