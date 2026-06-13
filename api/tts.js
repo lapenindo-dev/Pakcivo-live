@@ -52,7 +52,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "tts-1",        // tts-1 = latency rendah, tts-1-hd = kualitas lebih tinggi
         input: trimmed,
-        voice: "echo",         // dalam, berwibawa — cocok untuk Pak Civo
+        voice: "ash",         // dalam, berwibawa — cocok untuk Pak Civo
         response_format: "mp3",
         speed: 1.2,
       }),
