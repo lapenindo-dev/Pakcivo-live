@@ -71,6 +71,29 @@ function normalizePhone(phone) {
   return phone.replace(/\D/g, "").split("").join(" ");
 }
 
+
+function normalizePlainNumber(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return value;
+
+  // Nomor telepon / kode panjang sebaiknya dibaca digit per digit.
+  const digitsOnly = value.replace(/\D/g, "");
+  if (digitsOnly.startsWith("0") && digitsOnly.length >= 8) return normalizePhone(value);
+
+  // Format ribuan Indonesia/US: 117.000 / 117,000 / 1.000.000
+  if (/^\d{1,3}([.,]\d{3})+$/.test(value)) {
+    const num = parseInt(value.replace(/\D/g, ""), 10);
+    return Number.isFinite(num) ? numberToWords(num) : value;
+  }
+
+  // Format desimal: 5,5 / 4.5 — jangan dianggap ribuan.
+  if (/^\d+[.,]\d+$/.test(value)) return decimalToWords(value);
+
+  const num = parseInt(digitsOnly, 10);
+  return Number.isFinite(num) ? numberToWords(num) : value;
+}
+
+
 function normalizeForSpeech(text) {
   let t = text;
 
@@ -162,6 +185,11 @@ function normalizeForSpeech(text) {
   // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
 
+  // Angka umum yang belum kena aturan di atas.
+  // Ini memperbaiki bug angka berakhiran 0 dibaca seperti ada tambahan "nol".
+  // Contoh: 10 -> sepuluh, 40 -> empat puluh, 500.000 -> lima ratus ribu.
+  t = t.replace(/\d[\d.,]*/g, (raw) => normalizePlainNumber(raw));
+
   // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
   t = t.replace(/[<>]/g, "");
@@ -214,7 +242,7 @@ module.exports = async function handler(req, res) {
         input: trimmed,
         voice: "onyx",
         response_format: "mp3",
-        speed: 1.0,
+        speed: 1.08,
       }),
     });
 

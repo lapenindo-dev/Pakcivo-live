@@ -8,8 +8,9 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MAX_HISTORY   = 8; // batasi history percakapan
 
 const MODELS = [
-  "gemini-2.5-flash",
+  // 2.0 Flash biasanya lebih cepat untuk live chat; 2.5 tetap fallback jika perlu.
   "gemini-2.0-flash",
+  "gemini-2.5-flash",
   "gemini-1.5-flash",
 ];
 
@@ -180,7 +181,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.75, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 700 }
         })
       });
 
