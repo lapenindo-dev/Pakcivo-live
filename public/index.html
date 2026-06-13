@@ -537,9 +537,15 @@ async function speakText(text, btn) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) throw new Error("TTS gagal");
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      alert("TTS Error " + res.status + ": " + (errJson.error || "unknown"));
+      throw new Error("TTS gagal");
+    }
 
     const blob = await res.blob();
+    alert("Blob size: " + blob.size + " type: " + blob.type);
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     currentAudio = audio;
@@ -549,7 +555,10 @@ async function speakText(text, btn) {
     btn.innerHTML = "⏹ Stop";
     btn.dataset.playing = "1";
 
-    audio.play();
+    const playResult = audio.play();
+    if (playResult !== undefined) {
+      playResult.catch(e => alert("Play error: " + e.message));
+    }
     audio.onended = () => {
       URL.revokeObjectURL(url);
       currentAudio = null;
