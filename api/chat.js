@@ -99,7 +99,7 @@ module.exports = async function handler(req, res) {
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
       || "Maaf, saya tidak bisa menjawab saat ini. Silakan coba lagi.";
 
-    return res.status(200).json({ role: "assistant", content: text });
+    return res.status(200).json({ role: "assistant", reply: text });
 
   } catch (err) {
     console.error("Chat handler error:", err);
