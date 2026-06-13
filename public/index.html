@@ -163,11 +163,53 @@
 
 <script>
 const CATALOG = {
-  p1: { name: "Samcan Pork Belly Lokal", sku: "CIVO-SM-LKL-001", price: 130000, unit: "1 kg" },
-  p2: { name: "Babi Giling (Pork Ground)", sku: "CIVO-BG-500-001", price: 40000, unit: "500 g" },
-  p3: { name: "Pork Shoulder Kapsim", sku: "CIVO-PSK-1KG-001", price: 80000, unit: "1 kg" },
-  p4: { name: "Pork Paikut Ribs Chopped", sku: "CIVO-PRC-500-001", price: 50000, unit: "500 g" },
-  p5: { name: "Samcan Pork Belly Import", sku: "CIVO-SM-IMP-001", price: 150000, unit: "1 kg" },
+  // SAMCAN ON (SKIN ON)
+  p1:  { name: "SamcanOn PorkBelly Lokal", sku: "CIVO-SON-LKL-1KG", price: 130000, unit: "1 kg" },
+  p2:  { name: "SamcanOn PorkBelly Lokal", sku: "CIVO-SON-LKL-500", price: 65000, unit: "500 g" },
+  p3:  { name: "SamcanOn PorkBelly Lokal Dadu", sku: "CIVO-SON-LKL-DDU", price: 70000, unit: "500 g" },
+  p4:  { name: "SamcanOn PorkBelly Lokal Whole 2kg", sku: "CIVO-SON-LKL-2KG", price: 260000, unit: "2 kg" },
+  p5:  { name: "SamcanOn PorkBelly Import", sku: "CIVO-SON-IMP-1KG", price: 150000, unit: "1 kg" },
+  p6:  { name: "SamcanOn PorkBelly Import", sku: "CIVO-SON-IMP-500", price: 75000, unit: "500 g" },
+  // COLLAR / KAPSIM
+  p7:  { name: "PorkCollar Kapsim Kembang", sku: "CIVO-KPS-KBG-1KG", price: 95000, unit: "1 kg" },
+  p8:  { name: "PorkCollar Kapsim Kembang", sku: "CIVO-KPS-KBG-500", price: 47500, unit: "500 g" },
+  // SHOULDER / KAPSIM BAWAH
+  p9:  { name: "PorkShoulder Kapsim Bawah", sku: "CIVO-KPB-LKL-1KG", price: 82000, unit: "1 kg" },
+  p10: { name: "PorkShoulder Kapsim Bawah", sku: "CIVO-KPB-LKL-500", price: 41000, unit: "500 g" },
+  p11: { name: "PorkShoulder Kapsim Bawah Dadu", sku: "CIVO-KPB-DDU-500", price: 46000, unit: "500 g" },
+  // RIBS
+  p12: { name: "PorkRibs Paikut Sop", sku: "CIVO-PKT-SOP-500", price: 50000, unit: "500 g" },
+  p13: { name: "Pork SpareRibs Iga Barbeque", sku: "CIVO-SRB-BBQ-1KG", price: 100000, unit: "1 kg" },
+  p14: { name: "Pork BabyBackRibs Iga Barbeque", sku: "CIVO-BBR-BBQ-1KG", price: 120000, unit: "1 kg" },
+  // LAIN-LAIN
+  p15: { name: "Babi Giling (Pork Ground)", sku: "CIVO-BGL-500", price: 40000, unit: "500 g" },
+  p16: { name: "PorkLoin Karbonat", sku: "CIVO-LKB-1KG", price: 90000, unit: "1 kg" },
+  p17: { name: "Paha Babi", sku: "CIVO-PHA-1KG", price: 80000, unit: "1 kg" },
+  p18: { name: "Paha Babi", sku: "CIVO-PHA-500", price: 40000, unit: "500 g" },
+  p19: { name: "Paha Kulit", sku: "CIVO-PHK-1KG", price: 80000, unit: "1 kg" },
+  // SAMCAN OFF SLICE
+  p20: { name: "SamcanOff Slice Lokal Tipis", sku: "CIVO-SOF-LKL-TPS", price: 65000, unit: "500 g" },
+  p21: { name: "SamcanOff Slice Lokal Tebal", sku: "CIVO-SOF-LKL-TBL", price: 65000, unit: "500 g" },
+  p22: { name: "SamcanOff Slice Import Tipis", sku: "CIVO-SOF-IMP-TPS", price: 80000, unit: "500 g" },
+  p23: { name: "SamcanOff Slice Import Tebal", sku: "CIVO-SOF-IMP-TBL", price: 80000, unit: "500 g" },
+  // SAMCAN OFF TANPA KULIT
+  p24: { name: "SamcanOff Lokal Tanpa Kulit", sku: "CIVO-SOF-LKL-1KG", price: 130000, unit: "1 kg" },
+  p25: { name: "SamcanOff Lokal Tanpa Kulit", sku: "CIVO-SOF-LKL-500", price: 65000, unit: "500 g" },
+  p26: { name: "SamcanOff Import Tanpa Kulit", sku: "CIVO-SOF-IMP-1KG", price: 155000, unit: "1 kg" },
+  p27: { name: "SamcanOff Import Tanpa Kulit", sku: "CIVO-SOF-IMP-500", price: 77500, unit: "500 g" },
+  // COLLAR SLICE
+  p28: { name: "PorkCollar Moksal Lokal Slice Tipis", sku: "CIVO-MKS-LKL-TPS", price: 50000, unit: "500 g" },
+  p29: { name: "PorkCollar Moksal Lokal Slice Tebal", sku: "CIVO-MKS-LKL-TBL", price: 50000, unit: "500 g" },
+  p30: { name: "PorkCollar Moksal Import Slice Tipis", sku: "CIVO-MKS-IMP-TPS", price: 65000, unit: "500 g" },
+  p31: { name: "PorkCollar Moksal Import Slice Tebal", sku: "CIVO-MKS-IMP-TBL", price: 65000, unit: "500 g" },
+  // SHOULDER SLICE
+  p32: { name: "PorkShoulder KapsimBawah Lokal Slice Tipis", sku: "CIVO-KPB-SLC-TPS", price: 55000, unit: "500 g" },
+  p33: { name: "PorkShoulder KapsimBawah Lokal Slice Tebal", sku: "CIVO-KPB-SLC-TBL", price: 55000, unit: "500 g" },
+  p34: { name: "PorkLoin Karbonat Slice", sku: "CIVO-LKB-SLC-500", price: 50000, unit: "500 g" },
+  p35: { name: "Paha Babi Slice Tipis", sku: "CIVO-PHA-SLC-500", price: 45000, unit: "500 g" },
+  p36: { name: "Paha Kulit Slice Tipis", sku: "CIVO-PHK-SLC-500", price: 45000, unit: "500 g" },
+  // SAYURAN
+  p37: { name: "Sayur Asin Basah (2 ikat)", sku: "CIVO-SAY-ASN-1KG", price: 15000, unit: "1 pack" },
 };
 const WA_NUMBER = "6281717179291";
 
