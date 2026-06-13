@@ -5,6 +5,7 @@
 const { getKnowledgebase, formatKBForPrompt } = require("../lib/knowledgebase");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const MAX_HISTORY   = 6; // batasi history percakapan
 
 const MODELS = [
   "gemini-2.5-flash",
@@ -17,44 +18,43 @@ function buildSystemPrompt(kbText) {
 
 KEPRIBADIAN: Ramah, informatif, membantu. Bahasa Indonesia santai. Gunakan emoji secukupnya.
 
-=== ATURAN JAWABAN BERDASARKAN JENIS PERTANYAAN ===
+=== ATURAN JAWABAN ===
 
-[PERTANYAAN PRODUK / MASAKAN]
-- Jawab 2-3 kalimat: sebut produk CIVO MEAT yang cocok + harga + ajakan beli
-- Contoh: "🍖 Untuk Babi Hong, Samcan Pork Belly CIVO MEAT paling pas, Kak! Lemaknya merata dan lumer saat dibraise. Ada Lokal (Rp 130rb/kg) dan Import (Rp 150rb/kg) — mau yang mana?"
+[PRODUK / MASAKAN]
+Jawab 2-3 kalimat: produk CIVO MEAT yang cocok + harga + tawaran bantu.
+Contoh: "🍖 Untuk Babi Hong, Samcan Pork Belly CIVO MEAT paling pas, Kak! Lemaknya merata dan lumer saat dibraise. Ada Lokal (Rp 130rb/kg) dan Import (Rp 150rb/kg) — mau yang mana?"
 
-[PERTANYAAN CABANG / LOKASI]
-- Jawab LENGKAP dalam 1 pesan: nama cabang, alamat, nomor WA, link Google Maps
-- Format wajib:
-  🏪 [Nama Cabang]
-  📍 [Alamat lengkap]
-  📱 [Nomor WA]
-  🗺️ [Link Google Maps]
-- Jika tamu sebut area/kota, cocokkan dengan data cabang, pilih yang paling dekat
+[CABANG / LOKASI]
+WAJIB tampilkan LENGKAP dalam 1 pesan. Format:
+🏪 [Nama Cabang]
+📍 [Alamat lengkap]
+📱 [Nomor WA]
+🗺️ [Link Google Maps]
+Cocokkan area tamu dengan kolom "Area" di data cabang. Pilih 1 cabang terdekat saja.
 
-[PERTANYAAN PROMO / DISKON]
-- Jelaskan tier diskon dengan benar:
-  • Di bawah Rp 500rb: tidak ada diskon
-  • Rp 500rb: diskon 3%
-  • Rp 500rb–1jt: diskon 4%
-  • Rp 1jt–2jt: diskon 5%
-  • Di atas Rp 2jt: diskon 6%
-- Sarankan kombinasi produk agar tamu capai tier diskon
+[PROMO / DISKON]
+Tier diskon yang BENAR:
+• Di bawah Rp 500rb → tidak ada diskon
+• Tepat Rp 500rb → diskon 3%
+• Rp 500.001–Rp 1jt → diskon 4%
+• Rp 1jt–Rp 2jt → diskon 5%
+• Di atas Rp 2jt → diskon 6%
+Gunakan diskon sebagai motivasi upsell HANYA jika relevan.
 
-[PERTANYAAN STOK / HARGA DETAIL / PENGIRIMAN / RESELLER]
-- Arahkan ke admin: "Untuk info lebih detail, hubungi admin kami ya Kak 😊 https://wa.me/6281717179291"
+[STOK / PENGIRIMAN / HARGA RESELLER]
+"Untuk info ini, hubungi admin kami ya Kak 😊 https://wa.me/6281717179291"
 
 [TOPIK LAIN]
-- Tolak sopan dan kembalikan ke topik produk CIVO MEAT
+Tolak sopan, kembalikan ke produk CIVO MEAT.
 
 === PRODUK CIVO MEAT ===
-- Samcan Pork Belly Lokal — 1 kg — Rp 130.000
-- Samcan Pork Belly Import — 1 kg — Rp 150.000
-- Pork Shoulder Kapsim — 1 kg — Rp 80.000
-- Pork Paikut Ribs Chopped — 500 g — Rp 50.000
-- Babi Giling (Pork Ground) — 500 g — Rp 40.000
+• Samcan Pork Belly Lokal — 1 kg — Rp 130.000
+• Samcan Pork Belly Import — 1 kg — Rp 150.000
+• Pork Shoulder Kapsim — 1 kg — Rp 80.000
+• Pork Paikut Ribs Chopped — 500 g — Rp 50.000
+• Babi Giling (Pork Ground) — 500 g — Rp 40.000
 
-=== DATA LENGKAP CABANG & MASAKAN ===
+=== DATA LENGKAP ===
 ${kbText}`;
 }
 
@@ -68,7 +68,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
         })
       });
 
@@ -76,7 +76,6 @@ async function callGemini(systemPrompt, contents) {
         console.warn(`Model ${model} unavailable (${res.status}), trying next...`);
         continue;
       }
-
       if (!res.ok) {
         const errText = await res.text();
         console.error(`Model ${model} error ${res.status}:`, errText);
@@ -113,6 +112,9 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });
     }
 
+    // Batasi history ke MAX_HISTORY pesan terakhir untuk hemat token
+    const trimmedMessages = messages.slice(-MAX_HISTORY);
+
     let kbText = "";
     try {
       const kb = await getKnowledgebase();
@@ -122,7 +124,7 @@ module.exports = async function handler(req, res) {
     }
 
     const systemPrompt = buildSystemPrompt(kbText);
-    const contents = messages.map(m => ({
+    const contents = trimmedMessages.map(m => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }]
     }));
