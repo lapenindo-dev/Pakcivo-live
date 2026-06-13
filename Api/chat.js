@@ -380,10 +380,17 @@ async function handler(req, res) {
     }));
 
     const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
-    const geminiContents = trimmed.map((m) => ({
+    let geminiContents = trimmed.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
+    // Gemini menolak percakapan yang diawali role "model" — buang pesan assistant di awal.
+    while (geminiContents.length && geminiContents[0].role === "model") {
+      geminiContents.shift();
+    }
+    if (!geminiContents.length) {
+      return res.status(400).json({ error: "Pesan tidak valid, Kak. Coba ketik ulang ya." });
+    }
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
