@@ -113,10 +113,22 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bskin on\b/gi, "skin on");
   t = t.replace(/\bskin off\b/gi, "skin off");
 
-  // Harga: Rp117.000 / Rp 117,000 / IDR 117000
-  t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d\.\,]+)/gi, (_, amount) => {
-    const num = parseInt(String(amount).replace(/[^\d]/g, ""), 10);
-    if (isNaN(num)) return amount;
+  // Harga: Rp117.000 / Rp 117,000 / IDR 117000 / Rp 500.001
+  // Tangkap seluruh angka termasuk titik/koma sebagai pemisah ribuan atau desimal
+  t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)/gi, (full, amount) => {
+    // Deteksi apakah format ribuan (titik/koma diikuti tepat 3 digit berulang)
+    const isThousands = /^\d{1,3}([.,]\d{3})+$/.test(amount);
+    const isDecimal = /^\d+[.,]\d+$/.test(amount) && !isThousands;
+    let num;
+    if (isThousands) {
+      num = parseInt(amount.replace(/[.,]/g, ""), 10);
+    } else if (isDecimal) {
+      // Desimal rupiah — bulatkan
+      num = Math.round(parseFloat(amount.replace(",", ".")));
+    } else {
+      num = parseInt(amount.replace(/[^\d]/g, ""), 10);
+    }
+    if (isNaN(num)) return full;
     return `${numberToWords(num)} rupiah`;
   });
 
@@ -183,9 +195,9 @@ function normalizeForSpeech(text) {
   // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
 
-  // FIX: Angka umum — gunakan regex yang hanya cocok dengan angka utuh (bukan digit sisa)
-  // Ini mencegah "10" dibaca "sepuluh nol" karena regex menangkap "1" dan "0" secara terpisah
-  t = t.replace(/\b\d+([.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
+  // Angka umum: tangkap format ribuan (500.000 / 1.000.000) DAN angka biasa sekaligus
+  // Regex ini harus menangkap "500.000" sebagai satu token utuh
+  t = t.replace(/\b\d{1,3}(?:[.,]\d{3})+\b|\b\d+(?:[.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
 
   // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
