@@ -1,10 +1,10 @@
 // api/tts.js
-// Vercel Serverless Function — OpenAI TTS (with streaming)
+// Vercel Serverless Function — OpenAI TTS
 // Text chat tetap normal, tapi teks suara dinormalisasi agar bahasa Indonesia lebih natural.
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-module.exports.config = { maxDuration: 60 }; // dinaikkan untuk teks panjang
+module.exports.config = { maxDuration: 30 };
 
 function cleanDoubleSpaces(text) {
   return text.replace(/\s+/g, " ").trim();
@@ -74,14 +74,17 @@ function normalizePhone(phone) {
 function normalizeForSpeech(text) {
   let t = text;
 
+  // Hapus URL dan kode internal cart
   t = t.replace(/https?:\/\/\S+/gi, "");
   t = t.replace(/www\.\S+/gi, "");
   t = t.replace(/<<CART:[^>]+>>/g, "");
 
+  // Markdown dasar
   t = t.replace(/\*\*/g, "");
   t = t.replace(/\*/g, "");
   t = t.replace(/_/g, " ");
 
+  // Singkatan umum
   t = t.replace(/\bWA\b/gi, "WhatsApp");
   t = t.replace(/\bTelp\.?\b/gi, "telepon");
   t = t.replace(/\bCS\b/gi, "customer service");
@@ -89,59 +92,77 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bskin on\b/gi, "skin on");
   t = t.replace(/\bskin off\b/gi, "skin off");
 
+  // Harga: Rp117.000 / Rp 117,000 / IDR 117000
   t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d\.\,]+)/gi, (_, amount) => {
     const num = parseInt(String(amount).replace(/[^\d]/g, ""), 10);
     if (isNaN(num)) return amount;
     return `${numberToWords(num)} rupiah`;
   });
 
+  // 65rb / 65Rb / 65 rb / 65 ribu → enam puluh lima ribu rupiah
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b/gi, (_, n) => {
     const num = parseFloat(String(n).replace(",", "."));
     return `${numberToWords(Math.round(num * 1000))} rupiah`;
   });
 
+  // 2jt / 2 juta
   t = t.replace(/\b(\d+)\s*(jt|juta)\b/gi, (_, n) => {
     return `${numberToWords(parseInt(n, 10))} juta`;
   });
 
+  // 5.5M / 5,5M / 5.5 miliar
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m|miliar|milyar)\b/gi, (_, n) => {
     return `${decimalToWords(n)} miliar`;
   });
 
+  // Per kilogram: /kg
   t = t.replace(/\/\s*kg\b/gi, " per kilogram");
+
+  // Berat dan satuan
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*kg\b/gi, (_, n) => `${decimalToWords(n)} kilogram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*g\b/gi, (_, n) => `${decimalToWords(n)} gram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*gr\b/gi, (_, n) => `${decimalToWords(n)} gram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*ml\b/gi, (_, n) => `${decimalToWords(n)} mili liter`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*l\b/gi, (_, n) => `${decimalToWords(n)} liter`);
 
+  // Ukuran: 4.5x3.2x9 m
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*m\b/gi, (_, a, b, c) => {
     return `${decimalToWords(a)} kali ${decimalToWords(b)} kali ${decimalToWords(c)} meter`;
   });
 
+  // Meter persegi
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m2|m²)\b/gi, (_, n) => `${decimalToWords(n)} meter persegi`);
 
+  // Satuan produk
   t = t.replace(/\b(\d+)\s*pcs\b/gi, (_, n) => `${numberToWords(n)} pieces`);
   t = t.replace(/\b(\d+)\s*pc\b/gi, (_, n) => `${numberToWords(n)} piece`);
   t = t.replace(/\b(\d+)\s*pack\b/gi, (_, n) => `${numberToWords(n)} pak`);
   t = t.replace(/\b(\d+)\s*pax\b/gi, (_, n) => `${numberToWords(n)} orang`);
   t = t.replace(/\b(\d+)\s*ekor\b/gi, (_, n) => `${numberToWords(n)} ekor`);
 
+  // Range angka: 2-3 jam
   t = t.replace(/\b(\d+)\s*-\s*(\d+)\s*jam\b/gi, (_, a, b) => `${numberToWords(a)} sampai ${numberToWords(b)} jam`);
+
+  // Suhu: 63°C
   t = t.replace(/\b(\d+)\s*°?\s*C\b/g, (_, n) => `${numberToWords(n)} derajat celcius`);
 
+  // Alamat: No.3 / No.29A
   t = t.replace(/\bNo\.?\s*(\d+)([A-Za-z]?)\b/gi, (_, n, letter) => {
     return cleanDoubleSpaces(`nomor ${numberToWords(n)} ${letter ? letter.toUpperCase() : ""}`);
   });
 
+  // Blok H6 / KK-08
   t = t.replace(/\bBlok\s+([A-Za-z]+)[-\s]?(\d+)\b/gi, (_, letters, n) => {
     return `blok ${letters.toUpperCase()} ${numberToWords(n)}`;
   });
 
+  // Nomor HP/WA dengan strip atau spasi
   t = t.replace(/\b0[\d\s\-]{8,18}\b/g, (phone) => normalizePhone(phone));
 
+  // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
 
+  // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
   t = t.replace(/[<>]/g, "");
   t = t.replace(/\s+/g, " ");
@@ -203,27 +224,16 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ error: "Gagal generate suara dari OpenAI." });
     }
 
-    // ✅ STREAMING: langsung pipe dari OpenAI ke client
+    const arrayBuffer = await ttsRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
     res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Transfer-Encoding", "chunked");
-    res.status(200);
-
-    const reader = ttsRes.body.getReader();
-
-    const pump = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(Buffer.from(value));
-      }
-      res.end();
-    };
-
-    await pump();
-
+    return res.status(200).send(buffer);
   } catch (err) {
     console.error("TTS handler error:", err);
+
     if (!res.headersSent) {
       return res.status(500).json({ error: "Server error." });
     }
