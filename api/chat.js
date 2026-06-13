@@ -72,7 +72,7 @@ module.exports = async function handler(req, res) {
     }));
 
     // Gunakan gemini-2.5-flash
-    const geminiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     const geminiRes = await fetch(geminiURL, {
       method: "POST",
