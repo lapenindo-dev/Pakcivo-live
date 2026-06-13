@@ -111,18 +111,7 @@
   .msg.bot .chat-link { color: #7B1D1D; }
   .msg.user .chat-link { color: #FFFFFF; }
   .msg.bot strong { color: #7B1D1D; font-weight: 800; }
-  .msg.bot em { font-style: italic; color: #9A5F2B; }
-  .tts-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    margin-top: 8px; padding: 4px 10px;
-    background: rgba(139,26,26,0.08); border: 1px solid rgba(139,26,26,0.2);
-    border-radius: 999px; font-size: 11px; color: #9A5F2B;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .tts-btn:hover { background: rgba(139,26,26,0.15); }
-  .tts-btn.playing { color: #8B1A1A; border-color: #8B1A1A; background: rgba(139,26,26,0.12); }
-  .tts-btn.loading { opacity: 0.6; pointer-events: none; }
-</style>
+  .msg.bot em { font-style: italic; color: #9A5F2B; }</style>
 </head>
 <body>
 
@@ -340,15 +329,6 @@ function withSalesHook(reply) {
 const initialGreeting = pickGreeting();
 const firstBotMsg = document.querySelector(".msg.bot");
 firstBotMsg.innerHTML = '<div class="tag">PAK CIVO 👨‍🍳</div>' + initialGreeting;
-
-// Tambah TTS button ke pesan selamat datang
-const greetBtn = document.createElement("button");
-greetBtn.className = "tts-btn";
-greetBtn.innerHTML = "🔊 Dengarkan";
-greetBtn.dataset.playing = "0";
-greetBtn.onclick = () => speakText(initialGreeting, greetBtn);
-firstBotMsg.appendChild(greetBtn);
-
 // Auto play greeting dinonaktifkan — browser mobile blokir tanpa gesture user
 // User bisa tap tombol 🔊 Dengarkan untuk mendengarkan greeting
 
@@ -504,79 +484,8 @@ function makeLinksClickable(text) {
   });
 }
 
-// ── TTS (OpenAI via /api/tts) ───────────────────────────────────
+// ── TTS (OpenAI via /api/tts) ────────────────────────────────────
 let currentAudio = null;
-
-function stopCurrentAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
-  document.querySelectorAll(".tts-btn.playing").forEach(b => {
-    b.classList.remove("playing");
-    b.innerHTML = "🔊 Dengarkan";
-    b.dataset.playing = "0";
-  });
-}
-
-async function speakText(text, btn) {
-  if (btn.dataset.playing === "1") {
-    stopCurrentAudio();
-    return;
-  }
-  stopCurrentAudio();
-
-  btn.classList.add("loading");
-  btn.innerHTML = "⏳ Loading...";
-
-  try {
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-
-    if (!res.ok) throw new Error("TTS gagal");
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-
-    btn.classList.remove("loading");
-    btn.classList.add("playing");
-    btn.innerHTML = "⏹ Stop";
-    btn.dataset.playing = "1";
-
-    audio.play().catch(() => {
-      // Jika autoplay diblokir, tombol tetap tampil — user bisa tap ulang
-      btn.classList.remove("playing");
-      btn.innerHTML = "🔊 Tap untuk dengar";
-      btn.dataset.playing = "0";
-      btn.onclick = () => {
-        audio.play();
-        btn.classList.add("playing");
-        btn.innerHTML = "⏹ Stop";
-        btn.dataset.playing = "1";
-        btn.onclick = () => speakText(text, btn);
-      };
-    });
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      currentAudio = null;
-      btn.classList.remove("playing");
-      btn.innerHTML = "🔊 Dengarkan";
-      btn.dataset.playing = "0";
-    };
-
-  } catch (err) {
-    console.error("TTS error:", err);
-    btn.classList.remove("loading", "playing");
-    btn.innerHTML = "🔊 Dengarkan";
-    btn.dataset.playing = "0";
-  }
-}
-// ───────────────────────────────────────────────────────────────
 
 // Fetch audio dari /api/tts — return Audio object siap play
 async function fetchAudio(text) {
@@ -585,17 +494,19 @@ async function fetchAudio(text) {
     .replace(/[\u{2600}-\u{27BF}]/gu, "")
     .replace(/https?:\/\/\S+/g, "")
     .replace(/\*\*/g, "").replace(/\*/g, "")
-    .replace(/\s+/g, " ").trim().slice(0, 500); // batasi 500 char biar cepat
+    .replace(/\s+/g, " ").trim().slice(0, 500);
   if (!cleanText) return null;
-  const res = await fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: cleanText }),
-  });
-  if (!res.ok) return null;
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  return new Audio(url);
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: cleanText }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return new Audio(url);
+  } catch(_) { return null; }
 }
 
 function playAudio(audio) {
@@ -605,20 +516,14 @@ function playAudio(audio) {
   audio.play().catch(() => {});
   audio.onended = () => { currentAudio = null; };
 }
+// ─────────────────────────────────────────────────────────────────
+
 
 function addMsg(role, content) {
   const div = document.createElement("div");
   div.className = "msg " + (role === "user" ? "user" : "bot");
   const tag = role === "user" ? "" : '<div class="tag">PAK CIVO 👨‍🍳</div>';
   div.innerHTML = tag + makeLinksClickable(content);
-  if (role !== "user" && content !== "Pak Civo sedang mengetik...") {
-    const btn = document.createElement("button");
-    btn.className = "tts-btn";
-    btn.innerHTML = "🔊 Dengarkan";
-    btn.dataset.playing = "0";
-    btn.onclick = () => speakText(content, btn);
-    div.appendChild(btn);
-  }
   document.getElementById("chatInner").appendChild(div);
   document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   return div;
