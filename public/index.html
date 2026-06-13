@@ -476,27 +476,57 @@ function makeLinksClickable(text) {
 
 // ── TTS (OpenAI via /api/tts) ────────────────────────────────────
 let currentAudio = null;
+const ttsCache = new Map();
+let ttsAbortController = null;
 
-// Fetch audio dari /api/tts — return Audio object siap play
-async function fetchAudio(text) {
-  const cleanText = text
+// Ambil hanya kalimat awal agar suara pertama jauh lebih cepat keluar.
+function makeFastSpeechText(text) {
+  const clean = String(text || "")
+    .replace(/<<CART:[^>]+>>/g, "")
     .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
     .replace(/[\u{2000}-\u{27BF}]/gu, "")
     .replace(/\u200D/g, "")
     .replace(/https?:\/\/\S+/g, "")
     .replace(/\*\*/g, "").replace(/\*/g, "")
-    .replace(/\s+/g, " ").trim().slice(0, 1500);
+    .replace(/\s+/g, " ").trim();
+
+  // Untuk latency: baca 1-2 kalimat pertama saja, bukan seluruh jawaban panjang.
+  const firstPart = clean.match(/^(.{1,520}?[.!?])\s/)?.[1] || clean.slice(0, 520);
+  return firstPart.trim();
+}
+
+// Fetch audio dari /api/tts — return Audio object siap play
+async function fetchAudio(text) {
+  const cleanText = makeFastSpeechText(text);
   if (!cleanText) return null;
+
+  // Cache supaya preset / jawaban pendek yang sama tidak generate ulang.
+  const cacheKey = cleanText.toLowerCase();
+  if (ttsCache.has(cacheKey)) {
+    return new Audio(ttsCache.get(cacheKey));
+  }
+
   try {
+    if (ttsAbortController) ttsAbortController.abort();
+    ttsAbortController = new AbortController();
+
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: cleanText }),
+      signal: ttsAbortController.signal,
     });
     if (!res.ok) return null;
     const blob = await res.blob();
     if (!blob.size) return null;
-    return new Audio(URL.createObjectURL(blob));
+    const url = URL.createObjectURL(blob);
+    ttsCache.set(cacheKey, url);
+    if (ttsCache.size > 20) {
+      const firstKey = ttsCache.keys().next().value;
+      URL.revokeObjectURL(ttsCache.get(firstKey));
+      ttsCache.delete(firstKey);
+    }
+    return new Audio(url);
   } catch(_) { return null; }
 }
 
@@ -520,9 +550,12 @@ function addMsg(role, content) {
   return div;
 }
 
-function sendPreset(t) { document.getElementById("msgInput").value = t; send(); }
+function sendPreset(t) {
+  document.getElementById("msgInput").value = t;
+  send({ forceAI: true }); // quick template harus tanya Gemini, bukan jawaban statis lokal
+}
 
-async function send() {
+async function send(options = {}) {
   if (loading) return;
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
@@ -536,7 +569,7 @@ async function send() {
   messages.push({ role: "user", content: text });
   addMsg("user", text);
 
-  const localReply = randomLocalReply(text);
+  const localReply = options.forceAI ? null : randomLocalReply(text);
   if (localReply) {
     const reply = withSalesHook(localReply);
     messages.push({ role: "assistant", content: reply });
