@@ -193,7 +193,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "tts-1",
         input: trimmed,
-        voice: "nova",
+        voice: "onyx",
         response_format: "mp3",
         speed: 1.0,
       }),
