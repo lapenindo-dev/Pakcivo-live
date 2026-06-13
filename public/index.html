@@ -531,9 +531,21 @@ async function fetchAudio(text) {
 
 function playAudio(audio) {
   if (!audio) return;
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = "";
+    currentAudio = null;
+  }
   currentAudio = audio;
-  audio.play().catch(() => {});
+  // Unlock AudioContext dulu agar tidak diblokir browser setelah interrupt
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume().then(() => {
+      audio.play().catch(() => {});
+    });
+  } catch(_) {
+    audio.play().catch(() => {});
+  }
   audio.onended = () => { currentAudio = null; };
 }
 // ─────────────────────────────────────────────────────────────────
