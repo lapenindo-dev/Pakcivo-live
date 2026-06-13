@@ -1,9 +1,8 @@
 // api/tts.js
-// Vercel Serverless Function — ElevenLabs TTS dengan streaming
-// Audio langsung diputar sambil diterima, mengurangi delay
+// Vercel Serverless Function — OpenAI TTS
+// Lebih murah & lebih cepat dari ElevenLabs
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -13,8 +12,8 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
-    return res.status(500).json({ error: "ElevenLabs belum dikonfigurasi." });
+  if (!OPENAI_API_KEY) {
+    return res.status(500).json({ error: "OPENAI_API_KEY belum dikonfigurasi di Vercel." });
   }
 
   try {
@@ -23,7 +22,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Teks tidak boleh kosong." });
     }
 
-    // Bersihkan emoji, URL, dan karakter non-verbal
+    // Bersihkan emoji, URL, markdown, dan karakter non-verbal
     const cleanText = text
       .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
       .replace(/[\u{2600}-\u{27BF}]/gu, "")
@@ -38,37 +37,31 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Teks kosong setelah dibersihkan." });
     }
 
-    const ttsRes = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
-          "Accept": "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
-            use_speaker_boost: true,
-          },
-          // Optimasi: kirim audio lebih cepat dengan chunk lebih kecil
-          optimize_streaming_latency: 3,
-        }),
-      }
-    );
+    // Batasi max 4096 karakter (limit OpenAI TTS)
+    const trimmed = cleanText.slice(0, 4096);
+
+    const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "tts-1",        // tts-1 = latency rendah, tts-1-hd = kualitas lebih tinggi
+        input: trimmed,
+        voice: "onyx",         // dalam, berwibawa — cocok untuk Pak Civo
+        response_format: "mp3",
+        speed: 1.0,
+      }),
+    });
 
     if (!ttsRes.ok) {
       const errText = await ttsRes.text();
-      console.error("ElevenLabs error:", ttsRes.status, errText);
-      return res.status(502).json({ error: "Gagal generate suara." });
+      console.error("OpenAI TTS error:", ttsRes.status, errText);
+      return res.status(502).json({ error: "Gagal generate suara dari OpenAI." });
     }
 
-    // Stream langsung ke browser — tidak buffer semua dulu
+    // Stream langsung ke browser
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Transfer-Encoding", "chunked");
