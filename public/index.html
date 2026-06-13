@@ -340,6 +340,20 @@ function withSalesHook(reply) {
 const initialGreeting = pickGreeting();
 const firstBotMsg = document.querySelector(".msg.bot");
 firstBotMsg.innerHTML = '<div class="tag">PAK CIVO 👨‍🍳</div>' + initialGreeting;
+
+// Tambah TTS button ke pesan selamat datang
+const greetBtn = document.createElement("button");
+greetBtn.className = "tts-btn";
+greetBtn.innerHTML = "🔊 Dengarkan";
+greetBtn.dataset.playing = "0";
+greetBtn.onclick = () => speakText(initialGreeting, greetBtn);
+firstBotMsg.appendChild(greetBtn);
+
+// Auto play greeting saat halaman siap
+window.addEventListener("load", () => {
+  setTimeout(() => speakText(initialGreeting, greetBtn), 500);
+});
+
 let messages = [{ role: "assistant", content: initialGreeting }];
 let cart = {};
 let loading = false;
