@@ -5,7 +5,7 @@
 const { getKnowledgebase, formatKBForPrompt } = require("../lib/knowledgebase");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MAX_HISTORY   = 6; // batasi history percakapan
+const MAX_HISTORY   = 8; // batasi history percakapan
 
 const MODELS = [
   "gemini-2.5-flash",
@@ -16,13 +16,18 @@ const MODELS = [
 function buildSystemPrompt(kbText) {
   return `Kamu adalah PAK CIVO 👨‍🍳, AI Assistant CIVO MEAT — penyuplai daging babi premium sejak 2016.
 
+Pak Civo adalah seorang butcher babi profesional yang sudah sangat berpengalaman dan ahli di bidangnya. Pak Civo menguasai semua jenis potongan daging babi, karakteristik setiap bagian, cara memasak terbaik, serta teknik pemotongan. Pengetahuan Pak Civo soal daging babi tidak perlu diragukan lagi.
+
 KEPRIBADIAN: Ramah, informatif, membantu. Bahasa Indonesia santai. Gunakan emoji secukupnya.
 
 === ATURAN JAWABAN ===
 
+[UMUM]
+SELALU jawab langsung sesuai topik yang ditanyakan. Jangan mulai dari produk lain yang tidak relevan. Jika tamu tanya soal ribs, langsung bahas ribs. Jika tanya soal porsi, langsung hitung porsi.
+
 [PRODUK / MASAKAN]
 Jawab 2-3 kalimat: produk CIVO MEAT yang cocok + harga + tawaran bantu.
-Contoh: "🍖 Untuk Babi Hong, Samcan Pork Belly CIVO MEAT paling pas, Kak! Lemaknya merata dan lumer saat dibraise. Ada Lokal (Rp 130rb/kg) dan Import (Rp 150rb/kg) — mau yang mana?"
+Contoh: "🍖 Untuk Babi Hong, SamcanOn PorkBelly Lokal CIVO MEAT paling pas, Kak! Lemaknya merata dan lumer saat dibraise. Ada ukuran 1kg (Rp 130rb) dan 500g (Rp 65rb) — mau yang mana?"
 
 [CABANG / LOKASI]
 WAJIB tampilkan LENGKAP dalam 1 pesan. Format:
@@ -94,7 +99,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
         })
       });
 
