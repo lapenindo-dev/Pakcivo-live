@@ -31,12 +31,30 @@ function numberToWords(num) {
   if (num === 0) return "nol";
   if (num < 12) return angka[num];
   if (num < 20) return cleanDoubleSpaces(numberToWords(num - 10) + " belas");
-  if (num < 100) return cleanDoubleSpaces(numberToWords(Math.floor(num / 10)) + " puluh " + numberToWords(num % 10));
-  if (num < 200) return cleanDoubleSpaces("seratus " + numberToWords(num - 100));
-  if (num < 1000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 100)) + " ratus " + numberToWords(num % 100));
-  if (num < 2000) return cleanDoubleSpaces("seribu " + numberToWords(num - 1000));
-  if (num < 1000000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000)) + " ribu " + numberToWords(num % 1000));
-  if (num < 1000000000) return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000000)) + " juta " + numberToWords(num % 1000000));
+  if (num < 100) {
+    const sisa = num % 10;
+    return cleanDoubleSpaces(numberToWords(Math.floor(num / 10)) + " puluh" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
+  if (num < 200) {
+    const sisa = num - 100;
+    return cleanDoubleSpaces("seratus" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
+  if (num < 1000) {
+    const sisa = num % 100;
+    return cleanDoubleSpaces(numberToWords(Math.floor(num / 100)) + " ratus" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
+  if (num < 2000) {
+    const sisa = num - 1000;
+    return cleanDoubleSpaces("seribu" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
+  if (num < 1000000) {
+    const sisa = num % 1000;
+    return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000)) + " ribu" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
+  if (num < 1000000000) {
+    const sisa = num % 1000000;
+    return cleanDoubleSpaces(numberToWords(Math.floor(num / 1000000)) + " juta" + (sisa ? " " + numberToWords(sisa) : ""));
+  }
   return num.toString();
 }
 
