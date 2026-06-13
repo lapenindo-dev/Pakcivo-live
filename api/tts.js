@@ -188,7 +188,7 @@ function normalizeForSpeech(text) {
   // Angka umum yang belum kena aturan di atas.
   // Ini memperbaiki bug angka berakhiran 0 dibaca seperti ada tambahan "nol".
   // Contoh: 10 -> sepuluh, 40 -> empat puluh, 500.000 -> lima ratus ribu.
-  t = t.replace(/\d[\d.,]*/g, (raw) => normalizePlainNumber(raw));
+  t = t.replace(/\d[\d.,]*\b/g, (raw) => normalizePlainNumber(raw));
 
   // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
