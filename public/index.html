@@ -349,10 +349,8 @@ greetBtn.dataset.playing = "0";
 greetBtn.onclick = () => speakText(initialGreeting, greetBtn);
 firstBotMsg.appendChild(greetBtn);
 
-// Auto play greeting saat halaman siap
-window.addEventListener("load", () => {
-  setTimeout(() => speakText(initialGreeting, greetBtn), 500);
-});
+// Auto play greeting dinonaktifkan — browser mobile blokir tanpa gesture user
+// User bisa tap tombol 🔊 Dengarkan untuk mendengarkan greeting
 
 let messages = [{ role: "assistant", content: initialGreeting }];
 let cart = {};
@@ -538,14 +536,9 @@ async function speakText(text, btn) {
       body: JSON.stringify({ text }),
     });
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      alert("TTS Error " + res.status + ": " + (errJson.error || "unknown"));
-      throw new Error("TTS gagal");
-    }
+    if (!res.ok) throw new Error("TTS gagal");
 
     const blob = await res.blob();
-    alert("Blob size: " + blob.size + " type: " + blob.type);
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     currentAudio = audio;
@@ -555,10 +548,19 @@ async function speakText(text, btn) {
     btn.innerHTML = "⏹ Stop";
     btn.dataset.playing = "1";
 
-    const playResult = audio.play();
-    if (playResult !== undefined) {
-      playResult.catch(e => alert("Play error: " + e.message));
-    }
+    audio.play().catch(() => {
+      // Jika autoplay diblokir, tombol tetap tampil — user bisa tap ulang
+      btn.classList.remove("playing");
+      btn.innerHTML = "🔊 Tap untuk dengar";
+      btn.dataset.playing = "0";
+      btn.onclick = () => {
+        audio.play();
+        btn.classList.add("playing");
+        btn.innerHTML = "⏹ Stop";
+        btn.dataset.playing = "1";
+        btn.onclick = () => speakText(text, btn);
+      };
+    });
     audio.onended = () => {
       URL.revokeObjectURL(url);
       currentAudio = null;
@@ -614,9 +616,7 @@ async function send() {
   if (localReply) {
     const reply = withSalesHook(localReply);
     messages.push({ role: "assistant", content: reply });
-    const msgDiv = addMsg("bot", reply);
-    const ttsBtn = msgDiv.querySelector(".tts-btn");
-    if (ttsBtn) speakText(reply, ttsBtn);
+    addMsg("bot", reply);
     return;
   }
 
@@ -652,9 +652,7 @@ async function send() {
     if (data && data.reply) {
       const visible = applyCartActions(data.reply);
       messages.push({ role: "assistant", content: visible });
-      const msgDiv = addMsg("bot", visible);
-      const ttsBtn = msgDiv.querySelector(".tts-btn");
-      if (ttsBtn) speakText(visible, ttsBtn);
+      addMsg("bot", visible);
     } else if (data && data.error) {
       addMsg("bot", data.error);
     } else {
