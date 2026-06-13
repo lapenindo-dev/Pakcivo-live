@@ -716,6 +716,17 @@ async function initAnalyticsIfConfigured() {
 }
 initAnalyticsIfConfigured();
 
+// Pre-warm TTS function agar tidak cold start saat pertama dipakai
+(async function warmTTS() {
+  try {
+    await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "halo" }),
+    });
+  } catch(_) {}
+})();
+
 document.getElementById("msgInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
