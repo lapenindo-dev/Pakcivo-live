@@ -81,9 +81,10 @@ function normalizeForSpeech(text) {
     return `${numberToWords(num)} rupiah`;
   });
 
-  // 117rb / 117 ribu
-  t = t.replace(/\b(\d+)\s*(rb|ribu)\b/gi, (_, n) => {
-    return `${numberToWords(parseInt(n, 10))} ribu`;
+  // 65rb / 65Rb / 65 rb / 65 ribu → enam puluh lima ribu rupiah
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b/gi, (_, n) => {
+    const num = parseFloat(String(n).replace(",", "."));
+    return `${numberToWords(Math.round(num * 1000))} rupiah`;
   });
 
   // 2jt / 2 juta
