@@ -492,24 +492,37 @@ function makeLinksClickable(text) {
   });
 }
 
-// ── TTS (ElevenLabs via /api/tts) ──────────────────────────────
+// ── TTS (ElevenLabs via /api/tts) dengan streaming ─────────────
 let currentAudio = null;
+let currentMediaSource = null;
 
-async function speakText(text, btn) {
+function stopCurrentAudio() {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
-    document.querySelectorAll(".tts-btn.playing").forEach(b => {
-      b.classList.remove("playing");
-      b.innerHTML = "🔊 Dengarkan";
-    });
-    if (btn.dataset.playing === "1") {
-      btn.dataset.playing = "0";
-      return;
-    }
   }
+  if (currentMediaSource && currentMediaSource.readyState === "open") {
+    try { currentMediaSource.endOfStream(); } catch(_) {}
+  }
+  currentMediaSource = null;
+  document.querySelectorAll(".tts-btn.playing").forEach(b => {
+    b.classList.remove("playing");
+    b.innerHTML = "🔊 Dengarkan";
+    b.dataset.playing = "0";
+  });
+}
+
+async function speakText(text, btn) {
+  // Jika sedang main, stop
+  if (btn.dataset.playing === "1") {
+    stopCurrentAudio();
+    return;
+  }
+  stopCurrentAudio();
+
   btn.classList.add("loading");
   btn.innerHTML = "⏳ Loading...";
+
   try {
     const res = await fetch("/api/tts", {
       method: "POST",
@@ -517,26 +530,78 @@ async function speakText(text, btn) {
       body: JSON.stringify({ text }),
     });
     if (!res.ok) throw new Error("TTS gagal");
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-    btn.classList.remove("loading");
-    btn.classList.add("playing");
-    btn.innerHTML = "⏹ Stop";
-    btn.dataset.playing = "1";
-    audio.play();
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      currentAudio = null;
-      btn.classList.remove("playing");
-      btn.innerHTML = "🔊 Dengarkan";
-      btn.dataset.playing = "0";
-    };
+
+    // Cek apakah browser support MediaSource streaming
+    if (window.MediaSource && MediaSource.isTypeSupported("audio/mpeg")) {
+      const ms = new MediaSource();
+      currentMediaSource = ms;
+      const audioUrl = URL.createObjectURL(ms);
+      const audio = new Audio(audioUrl);
+      currentAudio = audio;
+
+      ms.addEventListener("sourceopen", async () => {
+        const sb = ms.addSourceBuffer("audio/mpeg");
+        const reader = res.body.getReader();
+
+        btn.classList.remove("loading");
+        btn.classList.add("playing");
+        btn.innerHTML = "⏹ Stop";
+        btn.dataset.playing = "1";
+        audio.play();
+
+        const pump = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                if (ms.readyState === "open") ms.endOfStream();
+                break;
+              }
+              // Tunggu buffer siap sebelum append
+              await new Promise(r => {
+                if (!sb.updating) return r();
+                sb.addEventListener("updateend", r, { once: true });
+              });
+              if (ms.readyState === "open") sb.appendBuffer(value);
+            }
+          } catch(e) { /* stream stopped */ }
+        };
+        pump();
+      });
+
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
+        btn.classList.remove("playing");
+        btn.innerHTML = "🔊 Dengarkan";
+        btn.dataset.playing = "0";
+      };
+
+    } else {
+      // Fallback: browser tidak support MediaSource, buffer semua dulu
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudio = audio;
+      btn.classList.remove("loading");
+      btn.classList.add("playing");
+      btn.innerHTML = "⏹ Stop";
+      btn.dataset.playing = "1";
+      audio.play();
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        btn.classList.remove("playing");
+        btn.innerHTML = "🔊 Dengarkan";
+        btn.dataset.playing = "0";
+      };
+    }
+
   } catch (err) {
     console.error("TTS error:", err);
-    btn.classList.remove("loading");
+    btn.classList.remove("loading", "playing");
     btn.innerHTML = "🔊 Dengarkan";
+    btn.dataset.playing = "0";
   }
 }
 // ───────────────────────────────────────────────────────────────
