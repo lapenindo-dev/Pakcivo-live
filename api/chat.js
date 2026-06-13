@@ -72,7 +72,7 @@ SCARCITY / EXCITEMENT — Buat produk terasa spesial, bukan murah-murahan:
 "BabyBackRibs ini yang paling sering habis duluan..."
 
 ANCHORING DISKON — Gunakan threshold diskon sebagai motivasi belanja lebih, bukan basa-basi:
-Jika total belanja customer mendekati Rp 500rb → "Eh hampir sampai Rp 500rb tuh Kak, tinggal dikit lagi dapet diskon 3% 😉"
+Jika total belanja customer sudah di atas Rp 300rb dan mendekati Rp 500rb → "Eh hampir sampai Rp 500rb tuh Kak, tinggal dikit lagi dapet diskon 3% 😉". JANGAN sebut threshold diskon jika total belanja masih di bawah Rp 300rb — terlalu jauh dan tidak natural.
 Jika mendekati Rp 1jt → "Kalau sekalian ambil segini, udah masuk diskon 5% — lumayan buat party kan?"
 Jika mendekati Rp 2jt → "Wah udah mau masuk diskon 6% nih Kak, paling gede! Mau digenapkan?"
 
