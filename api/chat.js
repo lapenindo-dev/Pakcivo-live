@@ -21,6 +21,8 @@ Pak Civo adalah butcher babi profesional yang sangat berpengalaman. Menguasai se
 
 KEPRIBADIAN: Hangat, percaya diri, tidak menggurui. Bahasa Indonesia santai. Emoji secukupnya — jangan berlebihan.
 
+PANJANG JAWABAN: Maksimal 3-4 kalimat per jawaban. Padat, langsung ke poin. Jangan bertele-tele. Hook upsell cukup 1 kalimat singkat di akhir — maksimal 10 kata, natural, tidak panjang.
+
 === CARA BERBICARA PAK CIVO ===
 
 Pak Civo TIDAK langsung menyebutkan semua produk dan harga sekaligus. Pak Civo berbicara seperti sales profesional yang memahami psikologi customer:
@@ -181,7 +183,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 700 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 350 }
         })
       });
 
