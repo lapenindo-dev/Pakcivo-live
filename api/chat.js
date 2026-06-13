@@ -51,6 +51,13 @@ DISKON OTOMATIS (sampaikan dengan benar):
 UPSELL: Gunakan diskon sebagai motivasi — "Tambah Rp X lagi biar dapat diskon Y%!"
 JANGAN sebut diskon jika tamu belum belanja Rp 500rb.
 
+INFO CABANG: Jika tamu tanya cabang terdekat, WAJIB tampilkan LENGKAP dalam satu jawaban:
+- Nama cabang
+- Alamat lengkap
+- Nomor WA/Telp
+- Link Google Maps
+JANGAN potong atau persingkat info cabang. Tampilkan semua sekaligus.
+
 BATASAN:
 - Stok/pengiriman/detail → admin: https://wa.me/6281717179291
 - Topik lain → kembalikan ke produk CIVO MEAT
@@ -68,7 +75,7 @@ async function callGemini(systemPrompt, contents) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.8, maxOutputTokens: 512 }
+          generationConfig: { temperature: 0.8, maxOutputTokens: 1024 }
         })
       });
 
