@@ -490,9 +490,8 @@ function makeFastSpeechText(text) {
     .replace(/\*\*/g, "").replace(/\*/g, "")
     .replace(/\s+/g, " ").trim();
 
-  // Untuk latency: baca 1-2 kalimat pertama saja, bukan seluruh jawaban panjang.
-  const firstPart = clean.match(/^(.{1,520}?[.!?])\s/)?.[1] || clean.slice(0, 520);
-  return firstPart.trim();
+  // Baca seluruh teks (maks 4096 karakter sesuai limit OpenAI TTS)
+  return clean.slice(0, 4096);
 }
 
 // Fetch audio dari /api/tts — return Audio object siap play
