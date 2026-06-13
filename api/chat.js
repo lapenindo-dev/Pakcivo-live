@@ -40,6 +40,12 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  // Cek API key
+  if (!GEMINI_API_KEY) {
+    console.error("ERROR: GEMINI_API_KEY tidak ditemukan di environment variables");
+    return res.status(500).json({ error: "Konfigurasi server belum lengkap (API key missing)" });
+  }
+
   try {
     const { messages } = req.body;
 
@@ -48,8 +54,15 @@ module.exports = async function handler(req, res) {
     }
 
     // Ambil KB dari Google Sheet (cache 10 menit)
-    const kb = await getKnowledgebase();
-    const kbText = formatKBForPrompt(kb);
+    let kbText = "";
+    try {
+      const kb = await getKnowledgebase();
+      kbText = formatKBForPrompt(kb);
+    } catch (kbErr) {
+      console.error("KB fetch error (non-fatal):", kbErr.message);
+      // Lanjut tanpa KB jika gagal fetch sheet
+    }
+
     const systemPrompt = buildSystemPrompt(kbText);
 
     // Format messages untuk Gemini
@@ -58,7 +71,8 @@ module.exports = async function handler(req, res) {
       parts: [{ text: m.content }]
     }));
 
-    const geminiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // Gunakan gemini-2.5-flash
+    const geminiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
 
     const geminiRes = await fetch(geminiURL, {
       method: "POST",
@@ -75,8 +89,10 @@ module.exports = async function handler(req, res) {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      console.error("Gemini error:", errText);
-      return res.status(500).json({ error: "Gemini gagal merespons" });
+      console.error("Gemini HTTP error:", geminiRes.status, errText);
+      return res.status(500).json({
+        error: `Gemini error ${geminiRes.status}: ${errText.slice(0, 200)}`
+      });
     }
 
     const data = await geminiRes.json();
