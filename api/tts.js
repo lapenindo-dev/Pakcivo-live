@@ -71,7 +71,6 @@ function normalizePhone(phone) {
   return phone.replace(/\D/g, "").split("").join(" ");
 }
 
-
 function normalizePlainNumber(raw) {
   const value = String(raw || "").trim();
   if (!value) return value;
@@ -92,7 +91,6 @@ function normalizePlainNumber(raw) {
   const num = parseInt(digitsOnly, 10);
   return Number.isFinite(num) ? numberToWords(num) : value;
 }
-
 
 function normalizeForSpeech(text) {
   let t = text;
@@ -185,10 +183,9 @@ function normalizeForSpeech(text) {
   // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
 
-  // Angka umum yang belum kena aturan di atas.
-  // Ini memperbaiki bug angka berakhiran 0 dibaca seperti ada tambahan "nol".
-  // Contoh: 10 -> sepuluh, 40 -> empat puluh, 500.000 -> lima ratus ribu.
-  t = t.replace(/\d[\d.,]*\b/g, (raw) => normalizePlainNumber(raw));
+  // FIX: Angka umum — gunakan regex yang hanya cocok dengan angka utuh (bukan digit sisa)
+  // Ini mencegah "10" dibaca "sepuluh nol" karena regex menangkap "1" dan "0" secara terpisah
+  t = t.replace(/\b\d+([.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
 
   // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
