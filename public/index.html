@@ -336,6 +336,142 @@ body.mood-morning::before { background: radial-gradient(ellipse at top, rgba(255
 body.mood-afternoon::before { background: radial-gradient(ellipse at top, rgba(255,120,30,0.05) 0%, transparent 60%); }
 body.mood-evening::before { background: radial-gradient(ellipse at top, rgba(180,50,20,0.07) 0%, transparent 60%); }
 body.mood-night::before { background: radial-gradient(ellipse at top, rgba(80,20,100,0.06) 0%, transparent 60%); }
+
+/* ── PRODUCT ANIMATION EFFECTS ── */
+.sizzle-overlay {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+}
+
+/* === PRODUCT 0: SamcanOn — FLAME FIRE EFFECT === */
+.anim-0 .steam {
+  position: absolute; bottom: 0;
+  border-radius: 50% 50% 20% 20%;
+  filter: blur(4px);
+  animation: flameRise 1.8s ease-in-out infinite;
+}
+.anim-0 .s1 { left: 55%; width: 12px; height: 20px; background: rgba(255,80,0,0.5); animation-delay: 0s; }
+.anim-0 .s2 { left: 65%; width: 16px; height: 28px; background: rgba(255,140,0,0.4); animation-delay: 0.3s; }
+.anim-0 .s3 { left: 75%; width: 10px; height: 16px; background: rgba(255,60,0,0.45); animation-delay: 0.6s; }
+@keyframes flameRise {
+  0% { transform: translateY(0) scaleX(1); opacity: 0.8; }
+  50% { transform: translateY(-20px) scaleX(0.8); opacity: 1; }
+  100% { transform: translateY(-40px) scaleX(0.5); opacity: 0; }
+}
+.anim-0 .heat-shimmer {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at bottom right, rgba(255,80,0,0.15) 0%, transparent 60%);
+  animation: fireGlow 1.5s ease-in-out infinite alternate;
+}
+@keyframes fireGlow {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* === PRODUCT 1: SamcanOff Slice — THIN SMOKE KOREAN BBQ === */
+.anim-1 .steam {
+  position: absolute; bottom: 15px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  filter: blur(5px);
+  animation: thinSmoke 3s ease-in-out infinite;
+}
+.anim-1 .s1 { left: 52%; width: 8px; height: 8px; animation-delay: 0s; }
+.anim-1 .s2 { left: 65%; width: 6px; height: 6px; animation-delay: 1s; }
+.anim-1 .s3 { left: 75%; width: 9px; height: 9px; animation-delay: 2s; }
+@keyframes thinSmoke {
+  0% { transform: translateY(0); opacity: 0.8; }
+  50% { transform: translateY(-30px) translateX(5px); opacity: 0.4; width: 14px; }
+  100% { transform: translateY(-60px) translateX(-3px); opacity: 0; width: 18px; }
+}
+.anim-1 .heat-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(transparent 60%, rgba(200,133,74,0.08) 100%);
+  animation: kbbqGlow 4s ease-in-out infinite;
+}
+@keyframes kbbqGlow {
+  0%,100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* === PRODUCT 2: Paikut Sop — BUBBLE BOILING SOUP === */
+.anim-2 .steam {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(180,220,255,0.25);
+  filter: blur(2px);
+  animation: bubble 2s ease-in infinite;
+}
+.anim-2 .s1 { bottom: 5px; left: 55%; width: 8px; height: 8px; animation-delay: 0s; }
+.anim-2 .s2 { bottom: 10px; left: 68%; width: 6px; height: 6px; animation-delay: 0.6s; }
+.anim-2 .s3 { bottom: 3px; left: 78%; width: 10px; height: 10px; animation-delay: 1.2s; }
+@keyframes bubble {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  60% { transform: translateY(-25px) scale(1.3); opacity: 0.5; }
+  100% { transform: translateY(-40px) scale(0); opacity: 0; }
+}
+.anim-2 .heat-shimmer {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at bottom right, rgba(100,180,255,0.1) 0%, transparent 60%);
+  animation: soupGlow 3s ease-in-out infinite alternate;
+}
+@keyframes soupGlow {
+  0% { opacity: 0.4; }
+  100% { opacity: 0.9; }
+}
+
+/* === PRODUCT 3: Kapsim Kembang — PREMIUM MARBLE SHIMMER === */
+.anim-3 .steam { display: none; }
+.anim-3 .heat-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0%, rgba(255,215,0,0.08) 25%,
+    transparent 50%, rgba(200,133,74,0.1) 75%, transparent 100%
+  );
+  background-size: 200% 200%;
+  animation: marbleShimmer 3s linear infinite;
+}
+@keyframes marbleShimmer {
+  0% { background-position: 0% 0%; opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { background-position: 200% 200%; opacity: 0.6; }
+}
+/* Gold sparkle dots */
+.anim-3::after {
+  content: '✦';
+  position: absolute; top: 15%; right: 20%;
+  color: rgba(255,215,0,0.7); font-size: 10px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+@keyframes sparkle {
+  0%,100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* === PRODUCT 4: Babi Giling — PAN SIZZLE EFFECT === */
+.anim-4 .steam {
+  position: absolute; bottom: 8px;
+  border-radius: 50%;
+  background: rgba(255,200,100,0.2);
+  filter: blur(3px);
+  animation: panSizzle 1.2s ease-in-out infinite;
+}
+.anim-4 .s1 { left: 52%; width: 14px; height: 6px; animation-delay: 0s; }
+.anim-4 .s2 { left: 64%; width: 10px; height: 5px; animation-delay: 0.4s; }
+.anim-4 .s3 { left: 74%; width: 12px; height: 6px; animation-delay: 0.8s; }
+@keyframes panSizzle {
+  0%,100% { transform: scaleX(1) translateY(0); opacity: 0.6; }
+  50% { transform: scaleX(1.4) translateY(-8px); opacity: 1; }
+}
+.anim-4 .heat-shimmer {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at bottom, rgba(255,150,0,0.12) 0%, transparent 50%);
+  animation: panGlow 1s ease-in-out infinite alternate;
+}
+@keyframes panGlow {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -382,17 +518,22 @@ body.mood-night::before { background: radial-gradient(ellipse at top, rgba(80,20
         <button id="heroCTA" onclick="heroAddCart()">+ Keranjang</button>
       </div>
     </div>
-    <!-- RIGHT: product video/image -->
+    <!-- RIGHT: product visual with CSS animation -->
     <div style="width:130px;flex-shrink:0;position:relative;overflow:hidden;">
-      <video id="heroVideo" autoplay muted loop playsinline
-        style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;transition:opacity 0.5s ease;opacity:0;"
-        onerror="this.style.display='none'">
-      </video>
+      <!-- Product image -->
       <img id="heroImg" src="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=85" 
         alt="produk" 
         style="width:100%;height:100%;object-fit:cover;object-position:center;transition:all 0.5s ease;"
         onerror="this.style.display='none';document.getElementById('heroImgFallback').style.display='flex'"/>
       <div id="heroImgFallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:50px;">🥓</div>
+      <!-- Dynamic animation overlay — changes per product -->
+      <div class="sizzle-overlay anim-0" id="heroAnim">
+        <div class="steam s1"></div>
+        <div class="steam s2"></div>
+        <div class="steam s3"></div>
+        <div class="heat-shimmer"></div>
+      </div>
+      <!-- gradient overlay -->
       <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,8,8,0.7) 0%,transparent 45%);pointer-events:none;"></div>
     </div>
   </div>
@@ -480,7 +621,7 @@ const PRODUCTS = [
     price: "130rb", unit: "/ 1 kg", emoji: "🥓", badge: "🏆 No.1 Terlaris", 
     bg: "linear-gradient(135deg,#3A0808 0%,#1A0808 100%)",
     img: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=85",
-    video: "https://cdn.coverr.co/videos/coverr-grilling-meat-on-bbq-3706/1080p.mp4",
+    video: "https://www.pexels.com/video/856356/download/",
     cartName: "SamcanOn Lokal 1kg",
     soldCount: "2.3rb terjual"
   },
@@ -489,7 +630,7 @@ const PRODUCTS = [
     price: "65rb", unit: "/ 500g", emoji: "🔥", badge: "🔥 Korean BBQ Pick", 
     bg: "linear-gradient(135deg,#2A1008 0%,#1A0808 100%)",
     img: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400&q=85",
-    video: "https://cdn.coverr.co/videos/coverr-korean-bbq-pork-belly-on-grill-8252/1080p.mp4",
+    video: "https://www.pexels.com/video/3843326/download/",
     cartName: "SamcanOff Slice Lokal 500g",
     soldCount: "1.8rb terjual"
   },
@@ -498,7 +639,7 @@ const PRODUCTS = [
     price: "50rb", unit: "/ 500g", emoji: "🍖", badge: "⭐ Best Seller #2", 
     bg: "linear-gradient(135deg,#2A1A08 0%,#1A0E08 100%)",
     img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=85",
-    video: "https://cdn.coverr.co/videos/coverr-pork-ribs-on-grill-5063/1080p.mp4",
+    video: "https://www.pexels.com/video/4611560/download/",
     cartName: "Paikut Sop 500g",
     soldCount: "1.5rb terjual"
   },
@@ -507,7 +648,7 @@ const PRODUCTS = [
     price: "95rb", unit: "/ 1 kg", emoji: "💎", badge: "💎 Premium Cut", 
     bg: "linear-gradient(135deg,#1A1A08 0%,#0E0E08 100%)",
     img: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=85",
-    video: "https://cdn.coverr.co/videos/coverr-slicing-meat-4892/1080p.mp4",
+    video: "https://www.pexels.com/video/3843331/download/",
     cartName: "Kapsim Kembang 1kg",
     soldCount: "980 terjual"
   },
@@ -516,7 +657,7 @@ const PRODUCTS = [
     price: "40rb", unit: "/ 500g", emoji: "🥩", badge: "🥩 Serba Guna", 
     bg: "linear-gradient(135deg,#1A0A0A 0%,#0E0808 100%)",
     img: "https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?w=400&q=85",
-    video: "https://cdn.coverr.co/videos/coverr-ground-meat-cooking-2341/1080p.mp4",
+    video: "https://www.pexels.com/video/2795392/download/",
     cartName: "Babi Giling 500g",
     soldCount: "2.1rb terjual"
   },
@@ -539,21 +680,17 @@ function setHero(idx, fromChat = false) {
   // Trigger price shock animation
   setTimeout(triggerPriceShock, 200);
 
+  // Switch product animation class
+  const animEl = document.getElementById("heroAnim");
+  if (animEl) {
+    animEl.className = "sizzle-overlay anim-" + idx;
+  }
+
   // Update social proof
   const soldEl = document.getElementById("heroSoldCount");
   if (soldEl) soldEl.textContent = p.soldCount || "Laris";
 
-  // Update video
-  const heroVideo = document.getElementById("heroVideo");
-  if (heroVideo && p.video) {
-    heroVideo.style.opacity = "0";
-    heroVideo.src = p.video;
-    heroVideo.load();
-    heroVideo.oncanplay = () => { heroVideo.style.opacity = "1"; };
-    heroVideo.onerror = () => { heroVideo.style.opacity = "0"; };
-  }
-
-  // Update product image (fallback)
+  // Update product image
   const heroImg = document.getElementById("heroImg");
   const heroFallback = document.getElementById("heroImgFallback");
   if (heroImg) {
