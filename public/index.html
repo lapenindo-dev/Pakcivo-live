@@ -281,6 +281,61 @@ body { display: flex; flex-direction: column; }
 }
 #sendBtn:active { transform: scale(0.92); }
 
+
+/* ── SHOCK PRICE REVEAL ── */
+@keyframes priceShock {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.4); color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.9); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.price-shock { animation: priceShock 0.6s cubic-bezier(0.36,0.07,0.19,0.97); }
+@keyframes dealBadge {
+  0% { opacity:0; transform:scale(0.7); }
+  100% { opacity:1; transform:scale(1); }
+}
+.deal-badge {
+  display:inline-block; background:linear-gradient(135deg,#FF4444,#CC0000);
+  color:white; font-size:9px; font-weight:900; padding:2px 8px;
+  border-radius:999px; letter-spacing:0.08em; margin-left:6px;
+  animation:dealBadge 0.4s ease forwards; vertical-align:middle;
+}
+/* ── SHARE BUTTON ── */
+#shareBtn {
+  position:fixed; bottom:80px; right:14px;
+  width:44px; height:44px; border-radius:50%;
+  background:linear-gradient(135deg,#25D366,#128C7E);
+  color:white; border:none; font-size:20px; cursor:pointer;
+  z-index:50; box-shadow:0 4px 16px rgba(37,211,102,0.45);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform 0.2s;
+}
+#shareBtn:active { transform:scale(0.9); }
+#sharePopup {
+  position:fixed; bottom:134px; right:14px;
+  background:#1E1C18; border:1px solid rgba(200,133,74,0.3);
+  border-radius:12px; padding:12px 14px; z-index:51;
+  min-width:210px; box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  display:none;
+}
+.share-title { font-size:10px; color:rgba(242,237,228,0.45); margin-bottom:8px; letter-spacing:0.1em; text-transform:uppercase; }
+.share-opt {
+  display:flex; align-items:center; gap:10px; padding:8px 0;
+  cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.06);
+  font-size:13px; color:var(--cream); transition:color 0.15s;
+}
+.share-opt:last-child { border:none; padding-bottom:0; }
+.share-opt:active { color:var(--copper); }
+.share-icon { font-size:18px; width:24px; text-align:center; }
+/* ── MOOD LIGHTING ── */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  transition: background 4s ease;
+}
+body.mood-morning::before { background: radial-gradient(ellipse at top, rgba(255,180,50,0.06) 0%, transparent 60%); }
+body.mood-afternoon::before { background: radial-gradient(ellipse at top, rgba(255,120,30,0.05) 0%, transparent 60%); }
+body.mood-evening::before { background: radial-gradient(ellipse at top, rgba(180,50,20,0.07) 0%, transparent 60%); }
+body.mood-night::before { background: radial-gradient(ellipse at top, rgba(80,20,100,0.06) 0%, transparent 60%); }
 </style>
 </head>
 <body>
@@ -327,15 +382,18 @@ body { display: flex; flex-direction: column; }
         <button id="heroCTA" onclick="heroAddCart()">+ Keranjang</button>
       </div>
     </div>
-    <!-- RIGHT: product image -->
+    <!-- RIGHT: product video/image -->
     <div style="width:130px;flex-shrink:0;position:relative;overflow:hidden;">
-      <img id="heroImg" src="https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=300&q=80" 
+      <video id="heroVideo" autoplay muted loop playsinline
+        style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;transition:opacity 0.5s ease;opacity:0;"
+        onerror="this.style.display='none'">
+      </video>
+      <img id="heroImg" src="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=85" 
         alt="produk" 
         style="width:100%;height:100%;object-fit:cover;object-position:center;transition:all 0.5s ease;"
         onerror="this.style.display='none';document.getElementById('heroImgFallback').style.display='flex'"/>
       <div id="heroImgFallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:50px;">🥓</div>
-      <!-- gradient overlay for seamless blend -->
-      <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,8,8,0.6) 0%,transparent 40%);pointer-events:none;"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,8,8,0.7) 0%,transparent 45%);pointer-events:none;"></div>
     </div>
   </div>
   <div id="heroDots">
@@ -422,35 +480,45 @@ const PRODUCTS = [
     price: "130rb", unit: "/ 1 kg", emoji: "🥓", badge: "🏆 No.1 Terlaris", 
     bg: "linear-gradient(135deg,#3A0808 0%,#1A0808 100%)",
     img: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=85",
-    cartName: "SamcanOn Lokal 1kg" 
+    video: "https://cdn.coverr.co/videos/coverr-grilling-meat-on-bbq-3706/1080p.mp4",
+    cartName: "SamcanOn Lokal 1kg",
+    soldCount: "2.3rb terjual"
   },
   { 
     name: "SamcanOff Slice Lokal", desc: "Tanpa kulit, iris tipis — wajib untuk Korean BBQ Samgyeopsal", 
     price: "65rb", unit: "/ 500g", emoji: "🔥", badge: "🔥 Korean BBQ Pick", 
     bg: "linear-gradient(135deg,#2A1008 0%,#1A0808 100%)",
     img: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400&q=85",
-    cartName: "SamcanOff Slice Lokal 500g" 
+    video: "https://cdn.coverr.co/videos/coverr-korean-bbq-pork-belly-on-grill-8252/1080p.mp4",
+    cartName: "SamcanOff Slice Lokal 500g",
+    soldCount: "1.8rb terjual"
   },
   { 
     name: "PorkRibs Paikut Sop", desc: "Kolagen tinggi, bikin kuah Bakut & Sop Iga super kaya rasa", 
     price: "50rb", unit: "/ 500g", emoji: "🍖", badge: "⭐ Best Seller #2", 
     bg: "linear-gradient(135deg,#2A1A08 0%,#1A0E08 100%)",
     img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=85",
-    cartName: "Paikut Sop 500g" 
+    video: "https://cdn.coverr.co/videos/coverr-pork-ribs-on-grill-5063/1080p.mp4",
+    cartName: "Paikut Sop 500g",
+    soldCount: "1.5rb terjual"
   },
   { 
     name: "PorkCollar Kapsim Kembang", desc: "Marbling alami terbaik — sempurna untuk Char Siu & Korean BBQ", 
     price: "95rb", unit: "/ 1 kg", emoji: "💎", badge: "💎 Premium Cut", 
     bg: "linear-gradient(135deg,#1A1A08 0%,#0E0E08 100%)",
     img: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=85",
-    cartName: "Kapsim Kembang 1kg" 
+    video: "https://cdn.coverr.co/videos/coverr-slicing-meat-4892/1080p.mp4",
+    cartName: "Kapsim Kembang 1kg",
+    soldCount: "980 terjual"
   },
   { 
     name: "Babi Giling", desc: "Serba guna — bakso, siomay, Mapo Tofu, Ngo Hiang & tumisan", 
     price: "40rb", unit: "/ 500g", emoji: "🥩", badge: "🥩 Serba Guna", 
     bg: "linear-gradient(135deg,#1A0A0A 0%,#0E0808 100%)",
     img: "https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?w=400&q=85",
-    cartName: "Babi Giling 500g" 
+    video: "https://cdn.coverr.co/videos/coverr-ground-meat-cooking-2341/1080p.mp4",
+    cartName: "Babi Giling 500g",
+    soldCount: "2.1rb terjual"
   },
 ];
 
@@ -468,18 +536,30 @@ function setHero(idx, fromChat = false) {
   document.getElementById("heroPrice").textContent = p.price;
   document.getElementById("heroUnit").textContent = p.unit;
   document.getElementById("heroBadge").textContent = p.badge;
-  // Update social proof
-  const soldCounts = ["2.3rb terjual", "1.8rb terjual", "1.5rb terjual", "980 terjual", "2.1rb terjual"];
-  const soldEl = document.getElementById("heroSoldCount");
-  if (soldEl) soldEl.textContent = soldCounts[idx] || "Laris";
+  // Trigger price shock animation
+  setTimeout(triggerPriceShock, 200);
 
-  // Update product image
+  // Update social proof
+  const soldEl = document.getElementById("heroSoldCount");
+  if (soldEl) soldEl.textContent = p.soldCount || "Laris";
+
+  // Update video
+  const heroVideo = document.getElementById("heroVideo");
+  if (heroVideo && p.video) {
+    heroVideo.style.opacity = "0";
+    heroVideo.src = p.video;
+    heroVideo.load();
+    heroVideo.oncanplay = () => { heroVideo.style.opacity = "1"; };
+    heroVideo.onerror = () => { heroVideo.style.opacity = "0"; };
+  }
+
+  // Update product image (fallback)
   const heroImg = document.getElementById("heroImg");
   const heroFallback = document.getElementById("heroImgFallback");
   if (heroImg) {
     heroImg.style.opacity = "0";
     heroImg.src = p.img;
-    heroImg.onload = () => { heroImg.style.opacity = "1"; heroFallback.style.display = "none"; heroFallback.textContent = p.emoji; };
+    heroImg.onload = () => { heroImg.style.opacity = "1"; heroFallback.style.display = "none"; };
     heroImg.onerror = () => { heroImg.style.display = "none"; heroFallback.style.display = "flex"; heroFallback.textContent = p.emoji; };
   }
 
@@ -671,6 +751,91 @@ document.getElementById("msgInput").addEventListener("keydown", e => {
   if (e.key === "Enter") send();
 });
 
+// ── MOOD LIGHTING ──────────────────────────────────────────
+function applyMoodLighting() {
+  const h = new Date().getHours();
+  const body = document.body;
+  body.classList.remove("mood-morning","mood-afternoon","mood-evening","mood-night");
+  if (h >= 5 && h < 11) body.classList.add("mood-morning");
+  else if (h >= 11 && h < 15) body.classList.add("mood-afternoon");
+  else if (h >= 15 && h < 19) body.classList.add("mood-evening");
+  else body.classList.add("mood-night");
+}
+applyMoodLighting();
+setInterval(applyMoodLighting, 60000);
+
+// ── SHOCK PRICE REVEAL ──────────────────────────────────────
+function triggerPriceShock() {
+  const priceEl = document.getElementById("heroPrice");
+  if (!priceEl) return;
+  priceEl.classList.remove("price-shock");
+  void priceEl.offsetWidth; // reflow
+  priceEl.classList.add("price-shock");
+
+  // Add deal badge
+  const existing = priceEl.parentNode.querySelector(".deal-badge");
+  if (existing) existing.remove();
+  const badge = document.createElement("span");
+  badge.className = "deal-badge";
+  badge.textContent = "HARGA TERBAIK";
+  priceEl.parentNode.insertBefore(badge, priceEl.nextSibling);
+  setTimeout(() => badge.remove(), 3000);
+}
+
+// ── SHARE ────────────────────────────────────────────────────
+let shareOpen = false;
+function toggleShare() {
+  shareOpen = !shareOpen;
+  const popup = document.getElementById("sharePopup");
+  popup.style.display = shareOpen ? "block" : "none";
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#shareBtn") && !e.target.closest("#sharePopup")) {
+    shareOpen = false;
+    document.getElementById("sharePopup").style.display = "none";
+  }
+});
+function shareWA() {
+  const p = PRODUCTS[currentHero];
+  const text = encodeURIComponent(
+    `🥩 Cek nih produk dari CIVO MEAT!
+
+*${p.name}*
+Harga: ${p.price} ${p.unit}
+
+${p.desc}
+
+👉 Chat Pak Civo: https://tokopakcivo.vercel.app`
+  );
+  window.open(`https://wa.me/?text=${text}`, "_blank");
+  toggleShare();
+}
+function shareCopy() {
+  const p = PRODUCTS[currentHero];
+  const text = `🥩 ${p.name} - ${p.price} ${p.unit} | CIVO MEAT
+${p.desc}
+https://tokopakcivo.vercel.app`;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("✓ Link disalin!");
+  }).catch(() => {
+    showToast("✓ Link: tokopakcivo.vercel.app");
+  });
+  toggleShare();
+}
+function shareNative() {
+  const p = PRODUCTS[currentHero];
+  if (navigator.share) {
+    navigator.share({
+      title: `${p.name} - CIVO MEAT`,
+      text: `${p.desc} — hanya ${p.price} ${p.unit}`,
+      url: "https://tokopakcivo.vercel.app",
+    }).catch(() => {});
+  } else {
+    shareCopy();
+  }
+  toggleShare();
+}
+
 (async function warmup() {
   try {
     await Promise.all([
@@ -685,5 +850,29 @@ let heroTimer = setInterval(() => {
   setHero((currentHero + 1) % PRODUCTS.length);
 }, 5000);
 </script>
+
+<!-- SHARE BUTTON -->
+<button id="shareBtn" onclick="toggleShare()" title="Bagikan">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+    <polyline points="16 6 12 2 8 6"/>
+    <line x1="12" y1="2" x2="12" y2="15"/>
+  </svg>
+</button>
+<div id="sharePopup">
+  <div class="share-title">Bagikan ke</div>
+  <div class="share-opt" onclick="shareWA()">
+    <span class="share-icon">💬</span>
+    <span>WhatsApp</span>
+  </div>
+  <div class="share-opt" onclick="shareCopy()">
+    <span class="share-icon">🔗</span>
+    <span>Salin Link</span>
+  </div>
+  <div class="share-opt" onclick="shareNative()">
+    <span class="share-icon">📤</span>
+    <span>Bagikan...</span>
+  </div>
+</div>
 </body>
 </html>
