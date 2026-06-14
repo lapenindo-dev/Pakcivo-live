@@ -8,9 +8,8 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MAX_HISTORY   = 8; // batasi history percakapan
 
 const MODELS = [
-  // 2.0 Flash biasanya lebih cepat untuk live chat; 2.5 tetap fallback jika perlu.
-  "gemini-2.0-flash",
   "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-1.5-flash",
 ];
 

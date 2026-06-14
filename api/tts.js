@@ -75,17 +75,14 @@ function normalizePlainNumber(raw) {
   const value = String(raw || "").trim();
   if (!value) return value;
 
-  // Nomor telepon / kode panjang sebaiknya dibaca digit per digit.
   const digitsOnly = value.replace(/\D/g, "");
   if (digitsOnly.startsWith("0") && digitsOnly.length >= 8) return normalizePhone(value);
 
-  // Format ribuan Indonesia/US: 117.000 / 117,000 / 1.000.000
   if (/^\d{1,3}([.,]\d{3})+$/.test(value)) {
     const num = parseInt(value.replace(/\D/g, ""), 10);
     return Number.isFinite(num) ? numberToWords(num) : value;
   }
 
-  // Format desimal: 5,5 / 4.5 — jangan dianggap ribuan.
   if (/^\d+[.,]\d+$/.test(value)) return decimalToWords(value);
 
   const num = parseInt(digitsOnly, 10);
@@ -95,31 +92,25 @@ function normalizePlainNumber(raw) {
 function normalizeForSpeech(text) {
   let t = text;
 
-  // Hapus URL dan kode internal cart
   t = t.replace(/https?:\/\/\S+/gi, "");
   t = t.replace(/www\.\S+/gi, "");
   t = t.replace(/<<CART:[^>]+>>/g, "");
 
-  // Markdown dasar
   t = t.replace(/\*\*/g, "");
   t = t.replace(/\*/g, "");
   t = t.replace(/_/g, " ");
 
-  // Koreksi pengucapan khusus bahasa Indonesia
-  // CIVO dibaca "Sivo" bukan "Zivo"
   t = t.replace(/\bCIVO MEAT\b/g, "Sivo Mit");
   t = t.replace(/\bCivo Meat\b/gi, "Sivo Mit");
   t = t.replace(/\bCIVO\b/g, "Sivo");
   t = t.replace(/\bCivo\b/g, "Sivo");
   t = t.replace(/\bcivo\b/g, "Sivo");
-  // SamcanOn = Samcan dengan kulit, SamcanOff = Samcan tanpa kulit
   t = t.replace(/\bSamcanOn\b/gi, "Sam-can On");
   t = t.replace(/\bSamcanOff\b/gi, "Sam-can Off");
   t = t.replace(/\bSAMCAN ON\b/g, "Sam-can On");
   t = t.replace(/\bSAMCAN OFF\b/g, "Sam-can Off");
   t = t.replace(/\bSAMCAN\b/g, "Sam-can");
   t = t.replace(/\bSamcan\b/gi, "Sam-can");
-  // Koreksi nama Korea
   t = t.replace(/\bSamgyeopsal\b/gi, "Sam-gyeop-sal");
   t = t.replace(/\bMoksal\b/gi, "Mok-sal");
   t = t.replace(/\bHangjeongsal\b/gi, "Hang-jeong-sal");
@@ -127,7 +118,6 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bBossam\b/gi, "Bos-sam");
   t = t.replace(/\bBulgogl\b/gi, "Bul-go-gi");
 
-  // Singkatan umum
   t = t.replace(/\bWA\b/gi, "WhatsApp");
   t = t.replace(/\bTelp\.?\b/gi, "telepon");
   t = t.replace(/\bCS\b/gi, "customer service");
@@ -135,17 +125,13 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bskin on\b/gi, "skin on");
   t = t.replace(/\bskin off\b/gi, "skin off");
 
-  // Harga: Rp117.000 / Rp 117,000 / IDR 117000 / Rp 500.001
-  // Tangkap seluruh angka termasuk titik/koma sebagai pemisah ribuan atau desimal
   t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)/gi, (full, amount) => {
-    // Deteksi apakah format ribuan (titik/koma diikuti tepat 3 digit berulang)
     const isThousands = /^\d{1,3}([.,]\d{3})+$/.test(amount);
     const isDecimal = /^\d+[.,]\d+$/.test(amount) && !isThousands;
     let num;
     if (isThousands) {
       num = parseInt(amount.replace(/[.,]/g, ""), 10);
     } else if (isDecimal) {
-      // Desimal rupiah — bulatkan
       num = Math.round(parseFloat(amount.replace(",", ".")));
     } else {
       num = parseInt(amount.replace(/[^\d]/g, ""), 10);
@@ -154,74 +140,51 @@ function normalizeForSpeech(text) {
     return `${numberToWords(num)} rupiah`;
   });
 
-  // 65rb / 65Rb / 65 rb / 65 ribu → enam puluh lima ribu rupiah
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b/gi, (_, n) => {
     const num = parseFloat(String(n).replace(",", "."));
     return `${numberToWords(Math.round(num * 1000))} rupiah`;
   });
 
-  // 2jt / 2 juta
   t = t.replace(/\b(\d+)\s*(jt|juta)\b/gi, (_, n) => {
     return `${numberToWords(parseInt(n, 10))} juta`;
   });
 
-  // 5.5M / 5,5M / 5.5 miliar
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m|miliar|milyar)\b/gi, (_, n) => {
     return `${decimalToWords(n)} miliar`;
   });
 
-  // Per kilogram: /kg
   t = t.replace(/\/\s*kg\b/gi, " per kilogram");
-
-  // Berat dan satuan
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*kg\b/gi, (_, n) => `${decimalToWords(n)} kilogram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*g\b/gi, (_, n) => `${decimalToWords(n)} gram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*gr\b/gi, (_, n) => `${decimalToWords(n)} gram`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*ml\b/gi, (_, n) => `${decimalToWords(n)} mili liter`);
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*l\b/gi, (_, n) => `${decimalToWords(n)} liter`);
 
-  // Ukuran: 4.5x3.2x9 m
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*m\b/gi, (_, a, b, c) => {
     return `${decimalToWords(a)} kali ${decimalToWords(b)} kali ${decimalToWords(c)} meter`;
   });
 
-  // Meter persegi
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m2|m²)\b/gi, (_, n) => `${decimalToWords(n)} meter persegi`);
-
-  // Satuan produk
   t = t.replace(/\b(\d+)\s*pcs\b/gi, (_, n) => `${numberToWords(n)} pieces`);
   t = t.replace(/\b(\d+)\s*pc\b/gi, (_, n) => `${numberToWords(n)} piece`);
   t = t.replace(/\b(\d+)\s*pack\b/gi, (_, n) => `${numberToWords(n)} pak`);
   t = t.replace(/\b(\d+)\s*pax\b/gi, (_, n) => `${numberToWords(n)} orang`);
   t = t.replace(/\b(\d+)\s*ekor\b/gi, (_, n) => `${numberToWords(n)} ekor`);
-
-  // Range angka: 2-3 jam
   t = t.replace(/\b(\d+)\s*-\s*(\d+)\s*jam\b/gi, (_, a, b) => `${numberToWords(a)} sampai ${numberToWords(b)} jam`);
-
-  // Suhu: 63°C
   t = t.replace(/\b(\d+)\s*°?\s*C\b/g, (_, n) => `${numberToWords(n)} derajat celcius`);
 
-  // Alamat: No.3 / No.29A
   t = t.replace(/\bNo\.?\s*(\d+)([A-Za-z]?)\b/gi, (_, n, letter) => {
     return cleanDoubleSpaces(`nomor ${numberToWords(n)} ${letter ? letter.toUpperCase() : ""}`);
   });
 
-  // Blok H6 / KK-08
   t = t.replace(/\bBlok\s+([A-Za-z]+)[-\s]?(\d+)\b/gi, (_, letters, n) => {
     return `blok ${letters.toUpperCase()} ${numberToWords(n)}`;
   });
 
-  // Nomor HP/WA dengan strip atau spasi
   t = t.replace(/\b0[\d\s\-]{8,18}\b/g, (phone) => normalizePhone(phone));
-
-  // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
-
-  // Angka umum: tangkap format ribuan (500.000 / 1.000.000) DAN angka biasa sekaligus
-  // Regex ini harus menangkap "500.000" sebagai satu token utuh
   t = t.replace(/\b\d{1,3}(?:[.,]\d{3})+\b|\b\d+(?:[.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
 
-  // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
   t = t.replace(/[<>]/g, "");
   t = t.replace(/\s+/g, " ");
@@ -292,7 +255,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).send(buffer);
   } catch (err) {
     console.error("TTS handler error:", err);
-
     if (!res.headersSent) {
       return res.status(500).json({ error: "Server error." });
     }
