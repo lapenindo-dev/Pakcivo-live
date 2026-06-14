@@ -105,6 +105,19 @@ function normalizeForSpeech(text) {
   t = t.replace(/\*/g, "");
   t = t.replace(/_/g, " ");
 
+  // Koreksi pengucapan khusus bahasa Indonesia
+  // CIVO dibaca "Sivo" bukan "Zivo"
+  t = t.replace(/\bCIVO MEAT\b/g, "Sivo Mit");
+  t = t.replace(/\bCivo Meat\b/gi, "Sivo Mit");
+  t = t.replace(/\bCIVO\b/g, "Sivo");
+  t = t.replace(/\bCivo\b/g, "Sivo");
+  t = t.replace(/\bcivo\b/g, "Sivo");
+  // Samcan dibaca "Samcan" bukan "Samcen" — tulis fonetik agar TTS baca benar
+  t = t.replace(/\bSamcanOn\b/gi, "Sam-can On");
+  t = t.replace(/\bSamcanOff\b/gi, "Sam-can Off");
+  t = t.replace(/\bSAMCAN\b/g, "Sam-can");
+  t = t.replace(/\bSamcan\b/gi, "Sam-can");
+
   // Singkatan umum
   t = t.replace(/\bWA\b/gi, "WhatsApp");
   t = t.replace(/\bTelp\.?\b/gi, "telepon");
@@ -113,10 +126,22 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bskin on\b/gi, "skin on");
   t = t.replace(/\bskin off\b/gi, "skin off");
 
-  // Harga: Rp117.000 / Rp 117,000 / IDR 117000
-  t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d\.\,]+)/gi, (_, amount) => {
-    const num = parseInt(String(amount).replace(/[^\d]/g, ""), 10);
-    if (isNaN(num)) return amount;
+  // Harga: Rp117.000 / Rp 117,000 / IDR 117000 / Rp 500.001
+  // Tangkap seluruh angka termasuk titik/koma sebagai pemisah ribuan atau desimal
+  t = t.replace(/\b(?:Rp|IDR)\.?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)/gi, (full, amount) => {
+    // Deteksi apakah format ribuan (titik/koma diikuti tepat 3 digit berulang)
+    const isThousands = /^\d{1,3}([.,]\d{3})+$/.test(amount);
+    const isDecimal = /^\d+[.,]\d+$/.test(amount) && !isThousands;
+    let num;
+    if (isThousands) {
+      num = parseInt(amount.replace(/[.,]/g, ""), 10);
+    } else if (isDecimal) {
+      // Desimal rupiah — bulatkan
+      num = Math.round(parseFloat(amount.replace(",", ".")));
+    } else {
+      num = parseInt(amount.replace(/[^\d]/g, ""), 10);
+    }
+    if (isNaN(num)) return full;
     return `${numberToWords(num)} rupiah`;
   });
 
@@ -183,9 +208,9 @@ function normalizeForSpeech(text) {
   // Persentase
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*%\b/g, (_, n) => `${decimalToWords(n)} persen`);
 
-  // FIX: Angka umum — gunakan regex yang hanya cocok dengan angka utuh (bukan digit sisa)
-  // Ini mencegah "10" dibaca "sepuluh nol" karena regex menangkap "1" dan "0" secara terpisah
-  t = t.replace(/\b\d+([.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
+  // Angka umum: tangkap format ribuan (500.000 / 1.000.000) DAN angka biasa sekaligus
+  // Regex ini harus menangkap "500.000" sebagai satu token utuh
+  t = t.replace(/\b\d{1,3}(?:[.,]\d{3})+\b|\b\d+(?:[.,]\d+)?\b/g, (raw) => normalizePlainNumber(raw));
 
   // Bersihkan sisa simbol yang mengganggu suara
   t = t.replace(/[•|]/g, ". ");
