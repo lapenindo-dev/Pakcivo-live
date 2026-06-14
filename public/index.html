@@ -405,17 +405,15 @@ function resetCaptcha() {
 const fmt = (n) => "Rp " + n.toLocaleString("id-ID");
 
 function getDiscount(t) {
-  if (t > 2000000) return 0.06;
-  if (t > 1000000) return 0.05;
-  if (t > 500000) return 0.04;
-  if (t >= 500000) return 0.03;
+  if (t > 2000000) return 0.05;
+  if (t > 1000000) return 0.04;
+  if (t > 500000) return 0.03;
   return 0;
 }
 function nextTier(t) {
-  if (t < 500000) return { target: 500000, pct: 3 };
-  if (t === 500000) return { target: 500001, pct: 4 };
-  if (t <= 1000000) return { target: 1000001, pct: 5 };
-  if (t <= 2000000) return { target: 2000001, pct: 6 };
+  if (t < 500000) return { target: 500001, pct: 3 };
+  if (t <= 1000000) return { target: 1000001, pct: 4 };
+  if (t <= 2000000) return { target: 2000001, pct: 5 };
   return null;
 }
 
@@ -713,22 +711,23 @@ async function initAnalyticsIfConfigured() {
 }
 initAnalyticsIfConfigured();
 
-// Pre-warm TTS & chat functions agar tidak cold start
+// Pre-warm TTS & chat + pre-cache greeting audio saat halaman load
 (async function warmAll() {
   try {
-    // Warm TTS dan chat paralel
-    await Promise.all([
-      fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: "halo" }),
-      }),
-      fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: "halo" }], cartContext: "" }),
-      }),
-    ]);
+    // Warm chat function paralel
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "halo" }], cartContext: "" }),
+    }).catch(() => {});
+
+    // Pre-fetch & cache audio greeting — siap langsung saat customer kirim pesan pertama
+    const greetingAudio = await fetchAudio(initialGreeting);
+    if (greetingAudio) {
+      // Simpan di cache agar langsung dipakai saat pertama play
+      const cacheKey = makeFastSpeechText(initialGreeting).toLowerCase();
+      // Sudah otomatis ter-cache di ttsCache oleh fetchAudio
+    }
   } catch(_) {}
 })();
 
