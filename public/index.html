@@ -679,8 +679,9 @@ async function send(options = {}) {
       const visible = applyCartActions(data.reply);
       messages.push({ role: "assistant", content: visible });
       addMsg("bot", visible);
-      // Fetch & play audio — masih dalam konteks gesture tap kirim
-      fetchAudio(visible).then(audio => playAudio(audio));
+      // Fetch & play audio paralel — langsung tanpa delay
+      const audioPromise = fetchAudio(visible);
+      audioPromise.then(audio => playAudio(audio));
     } else if (data && data.error) {
       addMsg("bot", data.error);
     } else {
@@ -712,20 +713,46 @@ async function initAnalyticsIfConfigured() {
 }
 initAnalyticsIfConfigured();
 
-// Pre-warm TTS function agar tidak cold start saat pertama dipakai
-(async function warmTTS() {
+// Pre-warm TTS & chat functions agar tidak cold start
+(async function warmAll() {
   try {
-    await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "halo" }),
-    });
+    // Warm TTS dan chat paralel
+    await Promise.all([
+      fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "halo" }),
+      }),
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: "halo" }], cartContext: "" }),
+      }),
+    ]);
   } catch(_) {}
 })();
 
 document.getElementById("msgInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
+
+// Unlock AudioContext on first user interaction anywhere on page
+let audioUnlocked = false;
+async function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(_) {}
+}
+document.addEventListener("touchstart", unlockAudio, { once: true });
+document.addEventListener("click", unlockAudio, { once: true });
 </script>
 </body>
 </html>
