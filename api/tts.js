@@ -112,11 +112,20 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bCIVO\b/g, "Sivo");
   t = t.replace(/\bCivo\b/g, "Sivo");
   t = t.replace(/\bcivo\b/g, "Sivo");
-  // Samcan dibaca "Samcan" bukan "Samcen" — tulis fonetik agar TTS baca benar
+  // SamcanOn = Samcan dengan kulit, SamcanOff = Samcan tanpa kulit
   t = t.replace(/\bSamcanOn\b/gi, "Sam-can On");
   t = t.replace(/\bSamcanOff\b/gi, "Sam-can Off");
+  t = t.replace(/\bSAMCAN ON\b/g, "Sam-can On");
+  t = t.replace(/\bSAMCAN OFF\b/g, "Sam-can Off");
   t = t.replace(/\bSAMCAN\b/g, "Sam-can");
   t = t.replace(/\bSamcan\b/gi, "Sam-can");
+  // Koreksi nama Korea
+  t = t.replace(/\bSamgyeopsal\b/gi, "Sam-gyeop-sal");
+  t = t.replace(/\bMoksal\b/gi, "Mok-sal");
+  t = t.replace(/\bHangjeongsal\b/gi, "Hang-jeong-sal");
+  t = t.replace(/\bGochujang\b/gi, "Go-chu-jang");
+  t = t.replace(/\bBossam\b/gi, "Bos-sam");
+  t = t.replace(/\bBulgogl\b/gi, "Bul-go-gi");
 
   // Singkatan umum
   t = t.replace(/\bWA\b/gi, "WhatsApp");

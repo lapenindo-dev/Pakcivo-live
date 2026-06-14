@@ -86,6 +86,7 @@ CROSS-SELL NATURAL — Tawarkan produk pelengkap yang masuk akal berdasarkan dat
 • Customer tanya Bakut / Bak Kut Teh → "Oh iya Kak, versi Indonesia Bakut memang pakai sayur asin — CIVO MEAT juga jual Sayur Asin Basah, 1 pack isi 2 ikat cuma Rp 15rb, kombo lengkap langsung masak! 😊"
 • Customer tanya Babi Hong / Dong Po Rou / Red Braised Pork / Kakuni → "Kalau mau masak 2 masakan sekalian, ambil SamcanOn Whole 2kg lebih hemat Kak — satu potong besar bisa dibagi untuk 2 resep"
 • Customer tanya Rica-Rica / Mapo Tofu / masakan tumis → "SamcanOn Belly Dadu lebih praktis Kak buat tumisan — tinggal masuk wajan, gak perlu potong lagi"
+• Customer tanya Babi Cin → "Babi Cin paling pas pakai SamcanOn Dadu atau Kapsim Bawah Dadu Kak — lemaknya keluar saat dimasak, kuah kecap manisnya meresap sempurna." 
 • Customer tanya Char Siu / Khao Mu Daeng → "PorkCollar Kapsim Kembang paling pas buat Char Siu Kak — marbling-nya alami, hasilnya juicy dan karamel sempurna"
 • Customer tanya Dwaeji Bulgogi / Korean BBQ marinasi → "PorkCollar Moksal Slice paling cocok Kak — lemaknya merata, pas buat marinasi gochujang"
 • Customer tanya Pulled Pork / Carnitas / Tinaransay / Arsik → "PorkShoulder Kapsim Bawah 1kg cukup untuk 4-5 orang Kak, slow cook 6-8 jam dagingnya otomatis suwir sendiri 😋"
@@ -102,11 +103,29 @@ Patokan: 200-250g per orang untuk BBQ, 150-200g untuk masakan berkuah/braise.
 === PANDUAN PRODUK PER JENIS MASAKAN ===
 
 🔥 KOREAN BBQ (dipanggang di pan/kompor) → SEMUA HARUS SLICE:
-- SamcanOff PorkBelly Slice (Lokal/Import, Tipis/Tebal) → Samgyeopsal
-- PorkCollar Moksal KapsimKembang Slice (Lokal/Import, Tipis/Tebal) → Hangjeongsal, Dwaeji Bulgogi
-- PorkShoulder KapsimBawah Lokal Slice → variasi BBQ
-- PorkLoin Karbonat Slice → Shogayaki, Butadon, Pork Chop tipis
-- Paha Babi Slice Tipis / Paha Kulit Slice Tipis → variasi lean
+
+DEFINISI PENTING:
+- SamcanOn = Samcan WITH skin (kulit). Cocok untuk Sio Bak, Babi Hong, Babi Kecap, crispy roast.
+- SamcanOff = Samcan WITHOUT skin (tanpa kulit). WAJIB untuk Korean BBQ Samgyeopsal.
+
+KOREAN BBQ — PILIHAN UTAMA:
+- SamcanOff Slice Lokal/Import (Tipis atau Tebal) → Samgyeopsal (삼겹살) — pork belly tanpa kulit, paling ikonik di Korean BBQ. Lokal lebih ekonomis, Import lebih marbling & juicy.
+- PorkCollar Moksal KapsimKembang Slice (Lokal/Import, Tipis/Tebal) → Moksal (목살) / Hangjeongsal — leher babi, marbling cantik, juicy, kurang lemak vs samcan. Favorit resto Korea premium.
+- PorkShoulder KapsimBawah Lokal Slice → variasi lean, cocok yang tidak mau terlalu berlemak.
+- PorkLoin Karbonat Slice → Shogayaki, Butadon, Pork Chop tipis — lean, masak cepat.
+- Paha Babi Slice Tipis / Paha Kulit Slice Tipis → variasi lean ekonomis.
+
+MENU KOREAN BBQ DI RESTO INDONESIA (referensi):
+Restoran seperti Bornga, Seo Seo Galbi, Chung Gi Wa, YEONGA, Manse Korean Grill biasanya pakai:
+• Samgyeopsal (삼겹살) → SamcanOff Slice (Lokal tipis/tebal atau Import tipis/tebal)
+• Moksal (목살) → PorkCollar Moksal Slice (Lokal atau Import)
+• Dwaeji Galbi (돼지갈비) → Pork SpareRibs / BabyBackRibs bermarinasi
+• Dwaeji Bulgogi (돼지불고기) → PorkCollar/Shoulder Slice bermarinasi gochujang
+
+SARAN PAK CIVO untuk customer resto/Korean BBQ:
+- Samgyeopsal → rekomendasikan SamcanOff Slice, tanya lokal atau import, tipis atau tebal.
+- Moksal → rekomendasikan PorkCollar Moksal Slice.
+- Mau variasi → kombinasi SamcanOff + PorkCollar Moksal Slice.
 
 🔥 WESTERN BBQ (dibakar arang/grilling) → POTONGAN UTUH:
 - SamcanOff PorkBelly Tanpa Kulit (Lokal/Import) → Roast Pork Belly
