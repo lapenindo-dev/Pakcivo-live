@@ -562,47 +562,20 @@ async function fetchAndPlayAudio(html) {
   } catch(e) {}
 }
 
-// Shared AudioContext — dibuat sekali, di-reuse
-let _sharedAudioCtx = null;
-function getAudioCtx() {
-  if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
-    _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  return _sharedAudioCtx;
-}
-
 function playAudio(audio) {
   if (!audio) return;
-  if (currentAudio) { currentAudio.pause(); currentAudio.src = ""; currentAudio = null; }
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   currentAudio = audio;
   try {
-    const ctx = getAudioCtx();
-    ctx.resume().then(() => {
-      audio.play().catch(err => {
-        console.warn("Audio play failed:", err);
-      });
-    });
-  } catch(e) {
-    audio.play().catch(() => {});
-  }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume().then(() => audio.play().catch(() => {}));
+  } catch(e) { audio.play().catch(() => {}); }
   audio.onended = () => { currentAudio = null; };
 }
 
-// Unlock AudioContext on first user gesture
-function unlockAudio() {
-  try {
-    const ctx = getAudioCtx();
-    ctx.resume();
-    // Play silent buffer to unlock
-    const buf = ctx.createBuffer(1, 1, 22050);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(ctx.destination);
-    src.start(0);
-  } catch(e) {}
-}
-document.addEventListener("touchstart", unlockAudio, { once: true });
-document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("touchstart", () => {
+  try { new (window.AudioContext || window.webkitAudioContext)().resume(); } catch(e) {}
+}, { once: true });
 
 // CHAT
 let messages = [{ role: "assistant", content: "Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik. Mau masak apa atau cari produk apa hari ini?" }];
@@ -653,6 +626,12 @@ async function send() {
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
+
+  // Resume AudioContext setiap kirim pesan — fix audio mati setelah idle
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === "suspended") await ctx.resume();
+  } catch(e) {}
 
   messages.push({ role: "user", content: text });
   addMsg("user", text);
