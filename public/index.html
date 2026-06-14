@@ -516,20 +516,85 @@ function goCheckout() {
 }
 
 // Chat flows
-const FLOWS = {
-  "produk terlaris": { hero: 0, msg: "<p>No.1 terlaris kami adalah <strong>SamcanOn PorkBelly Lokal 1kg — 130rb</strong> Kak! 🏆</p><p>Samcan WITH skin — favorit buat Babi Hong, Sio Bak & Babi Kecap. Hampir tiap hari habis sebelum siang!</p><p>Mau Pak Civo masukkan ke keranjang? 🛒</p>" },
-  "korean bbq": { hero: 1, msg: "<p>Untuk Korean BBQ, wajib pakai <strong>SamcanOff Slice Lokal 500g — 65rb</strong> Kak! 🔥</p><p>Samcan WITHOUT skin, iris tipis — ini yang bikin Samgyeopsal juicy & harum di pan.</p><p>Ada pilihan Tipis atau Tebal, Lokal atau Import. Mau yang mana Kak?</p>" },
-  "paikut sop": { hero: 2, msg: "<p><strong>PorkRibs Paikut Sop 500g — 50rb</strong> — no.2 best seller kami Kak! 🍖</p><p>Kolagen tinggi, bikin kuah Bakut & Sop Iga super kaya rasa. Hampir tiap hari customer resto pada order ini.</p><p>Mau langsung masuk keranjang? 🛒</p>" },
-  "babi kecap": { hero: 0, msg: "<p>Untuk Babi Kecap, paling pas pakai <strong>SamcanOn PorkBelly Lokal 1kg — 130rb</strong> Kak!</p><p>Samcan WITH skin — lapisan lemak & kulitnya bikin kuah kecap meresap sempurna, daging empuk & glossy.</p><p>Mau saya masukkan ke keranjang? 🛒</p>" },
-  "testimoni": { hero: 0, msg: "<p>⭐⭐⭐⭐⭐ <strong>Budi S.</strong> — \"Samcannya fresh banget! Udah order ke-7 kali, selalu puas. Babi Hong jadi empuk sempurna!\"</p><p>⭐⭐⭐⭐⭐ <strong>Cindy L.</strong> — \"SamcanOff Slice Import beda banget teksturnya, lebih marbling & juicy. Langganan terus!\"</p><p>⭐⭐⭐⭐⭐ <strong>Andre K.</strong> — \"Paikut Sopnya bikin kuah Bakut super kaya rasa. Worth banget!\"</p>" },
+// PRODUCT KEYWORD -> HERO MAPPING
+const PRODUCT_KEYWORDS = {
+  0: ["samcanon", "samcan on", "pork belly lokal", "babi hong", "sio bak", "babi kecap", "skin on"],
+  1: ["samcanoff slice", "samcan off slice", "korean bbq", "samgyeopsal", "slice lokal", "slice import"],
+  2: ["paikut", "pork ribs", "bakut", "sop iga"],
+  3: ["kapsim", "collar", "char siu", "moksal"],
+  4: ["babi giling", "pork ground", "bakso", "siomay"],
 };
+
+function detectHeroFromText(text) {
+  const t = (text || "").toLowerCase();
+  for (const [idx, keywords] of Object.entries(PRODUCT_KEYWORDS)) {
+    if (keywords.some(k => t.includes(k))) return parseInt(idx);
+  }
+  return null;
+}
+
+// TTS
+let currentAudio = null;
+const ttsCache = new Map();
+
+function makeSpeechText(html) {
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  return (d.textContent || "").replace(/\s+/g, " ").trim().slice(0, 4096);
+}
+
+async function fetchAndPlayAudio(html) {
+  const text = makeSpeechText(html);
+  if (!text) return;
+  const key = text.slice(0, 80);
+  try {
+    if (ttsCache.has(key)) { playAudio(new Audio(ttsCache.get(key))); return; }
+    const res = await fetch("/api/tts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    if (!blob.size) return;
+    const url = URL.createObjectURL(blob);
+    ttsCache.set(key, url);
+    playAudio(new Audio(url));
+  } catch(e) {}
+}
+
+function playAudio(audio) {
+  if (!audio) return;
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  currentAudio = audio;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume().then(() => audio.play().catch(() => {}));
+  } catch(e) { audio.play().catch(() => {}); }
+  audio.onended = () => { currentAudio = null; };
+}
+
+document.addEventListener("touchstart", () => {
+  try { new (window.AudioContext || window.webkitAudioContext)().resume(); } catch(e) {}
+}, { once: true });
+
+// CHAT
+let messages = [{ role: "assistant", content: "Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik. Mau masak apa atau cari produk apa hari ini?" }];
+let isLoading = false;
+
+function formatBotHtml(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/<<CART:[^>]+>>/g, "")
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, " ");
+}
 
 function addMsg(role, html) {
   document.getElementById("quickChips")?.remove();
   const div = document.createElement("div");
   div.className = "msg " + (role === "user" ? "user" : "bot");
   if (role === "bot") {
-    div.innerHTML = '<div class="tag">PAK CIVO 👨‍🍳</div>' + html;
+    div.innerHTML = '<div class="tag">PAK CIVO</div><p>' + html + '</p>';
   } else {
     div.innerHTML = '<p>' + html + '</p>';
   }
@@ -556,30 +621,55 @@ async function sendQ(text) {
 }
 
 async function send() {
+  if (isLoading) return;
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
 
+  messages.push({ role: "user", content: text });
   addMsg("user", text);
   addTyping();
+  isLoading = true;
 
-  await new Promise(r => setTimeout(r, 800 + Math.random() * 500));
-  document.getElementById("typing")?.remove();
+  const heroIdx = detectHeroFromText(text);
 
-  const key = Object.keys(FLOWS).find(k => text.toLowerCase().includes(k));
-  if (key) {
-    const flow = FLOWS[key];
-    if (flow.hero !== undefined) setHero(flow.hero, true);
-    addMsg("bot", flow.msg);
-  } else {
-    addMsg("bot", "<p>Coba tanya soal <strong>produk terlaris</strong>, <strong>Korean BBQ</strong>, <strong>Paikut Sop</strong>, atau <strong>Babi Kecap</strong> ya Kak 😊</p><p>Atau tap produk di atas untuk lihat detail & langsung tambah ke keranjang!</p>");
+  try {
+    const cartContext = cartItems.length ? "[CART: " + cartItems.join(", ") + "]" : "[CART KOSONG]";
+    const res = await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messages.slice(-8), cartContext }),
+    });
+    document.getElementById("typing")?.remove();
+    if (!res.ok) throw new Error("API error");
+    const data = await res.json();
+    const reply = data.reply || "Maaf Kak, ada gangguan sebentar. Coba lagi ya!";
+    const replyHeroIdx = detectHeroFromText(reply);
+    const finalHeroIdx = (heroIdx !== null) ? heroIdx : replyHeroIdx;
+    if (finalHeroIdx !== null) setHero(finalHeroIdx, true);
+    const html = formatBotHtml(reply);
+    messages.push({ role: "assistant", content: reply });
+    addMsg("bot", html);
+    fetchAndPlayAudio(html);
+  } catch(e) {
+    document.getElementById("typing")?.remove();
+    addMsg("bot", "<p>Maaf Kak, koneksi bermasalah. Coba kirim lagi ya!</p>");
   }
+  isLoading = false;
 }
 
 document.getElementById("msgInput").addEventListener("keydown", e => {
   if (e.key === "Enter") send();
 });
+
+(async function warmup() {
+  try {
+    await Promise.all([
+      fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({messages:[{role:"user",content:"halo"}],cartContext:""}) }),
+      fetch("/api/tts", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({text:"halo"}) }),
+    ]);
+  } catch(e) {}
+})();
 
 // Auto rotate hero every 5s when idle
 let heroTimer = setInterval(() => {
