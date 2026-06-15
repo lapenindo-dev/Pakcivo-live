@@ -4,6 +4,53 @@
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// ── RATE LIMITER ─────────────────────────────────────────────
+// Max 15 requests per IP per minute
+const _rateMap = new Map();
+function checkRateLimit(req) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() 
+    || req.headers["x-real-ip"] 
+    || req.socket?.remoteAddress 
+    || "unknown";
+  
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 15;
+
+  if (!_rateMap.has(ip)) {
+    _rateMap.set(ip, { count: 1, start: now });
+    return { allowed: true, ip };
+  }
+
+  const entry = _rateMap.get(ip);
+  
+  // Reset window if expired
+  if (now - entry.start > windowMs) {
+    _rateMap.set(ip, { count: 1, start: now });
+    return { allowed: true, ip };
+  }
+
+  // Increment count
+  entry.count++;
+
+  if (entry.count > maxRequests) {
+    console.warn(`Rate limit hit: ${ip} (${entry.count} req/min)`);
+    return { allowed: false, ip, count: entry.count };
+  }
+
+  return { allowed: true, ip };
+}
+
+// Cleanup old entries every 5 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of _rateMap.entries()) {
+    if (now - entry.start > 120000) _rateMap.delete(ip);
+  }
+}, 300000);
+// ─────────────────────────────────────────────────────────────
+
+
 module.exports.config = { maxDuration: 30 };
 
 function cleanDoubleSpaces(text) {
@@ -199,6 +246,12 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // Rate limiting (stricter for TTS — more expensive)
+  const rl = checkRateLimit(req);
+  if (!rl.allowed) {
+    return res.status(429).json({ error: "Rate limit exceeded" });
+  }
 
   if (!OPENAI_API_KEY) {
     return res.status(500).json({ error: "OPENAI_API_KEY belum dikonfigurasi di Vercel." });
