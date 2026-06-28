@@ -1,77 +1,152 @@
 // api/lead.js
-// PakCivo Lead Capture -> Shopify Customer
-// CommonJS / Vercel Serverless Function
+// PakCivo Lead Capture API v3
+// - Stores PakCivo lead as Shopify Customer
+// - Handles duplicate phone numbers safely
+// - Uses Shopify Admin API client credentials grant server-side only
 
 let cachedAdminToken = null;
 let cachedAdminTokenExpiresAt = 0;
 
-function normalizeIndonesianWhatsApp(input) {
-  let raw = String(input || "").trim();
-  raw = raw.replace(/[^\d+]/g, "");
-  if (raw.startsWith("+")) raw = raw.slice(1);
-  if (raw.startsWith("0")) raw = "62" + raw.slice(1);
-  if (raw.startsWith("8")) raw = "62" + raw;
-  if (!/^62\d{8,15}$/.test(raw)) return null;
-  return "+" + raw;
+function json(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
 }
 
-function cleanName(input) {
-  return String(input || "").trim().replace(/\s+/g, " ").slice(0, 80);
+function setCors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function cleanString(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function splitName(fullName) {
-  const parts = fullName.split(" ").filter(Boolean);
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+  const cleaned = cleanString(fullName);
+  const parts = cleaned.split(" ").filter(Boolean);
+
+  if (parts.length <= 1) {
+    return {
+      firstName: parts[0] || "Customer",
+      lastName: "Pakcivo"
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" ")
+  };
+}
+
+function normalizeIndonesianWhatsApp(input) {
+  let raw = String(input || "").trim();
+  raw = raw.replace(/[^0-9+]/g, "");
+
+  if (!raw) return null;
+
+  if (raw.startsWith("+")) {
+    raw = "+" + raw.slice(1).replace(/\+/g, "");
+  }
+
+  if (raw.startsWith("+62")) return raw;
+  if (raw.startsWith("62")) return `+${raw}`;
+  if (raw.startsWith("0")) return `+62${raw.slice(1)}`;
+  if (raw.startsWith("8")) return `+62${raw}`;
+
+  return raw.startsWith("+") ? raw : `+${raw}`;
+}
+
+function normalizeErrorMessage(error) {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (error.message) return error.message;
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return "Unknown error";
+  }
+}
+
+function hasDuplicatePhoneError(userErrors) {
+  const text = JSON.stringify(userErrors || []).toLowerCase();
+  return text.includes("phone") && (text.includes("already been taken") || text.includes("has already been taken"));
+}
+
+async function readBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch (_) {
+      return {};
+    }
+  }
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    return {};
+  }
 }
 
 async function getAdminAccessToken() {
-  const directToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
-  if (directToken) return directToken.trim();
+  const directToken = cleanString(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN);
+  if (directToken) return directToken;
 
-  const shop = String(process.env.SHOPIFY_STORE_DOMAIN || "").trim();
-  const clientId = String(process.env.SHOPIFY_ADMIN_CLIENT_ID || "").trim();
-  const clientSecret = String(process.env.SHOPIFY_ADMIN_CLIENT_SECRET || "").trim();
+  const shop = cleanString(process.env.SHOPIFY_STORE_DOMAIN);
+  const clientId = cleanString(process.env.SHOPIFY_ADMIN_CLIENT_ID);
+  const clientSecret = cleanString(process.env.SHOPIFY_ADMIN_CLIENT_SECRET);
 
   if (!shop || !clientId || !clientSecret) {
-    throw new Error("Missing Shopify Admin credentials");
+    throw new Error("Missing Shopify Admin credentials. Required: SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_CLIENT_ID, SHOPIFY_ADMIN_CLIENT_SECRET");
   }
 
   const now = Date.now();
-  if (cachedAdminToken && cachedAdminTokenExpiresAt > now + 60 * 1000) {
+  if (cachedAdminToken && cachedAdminTokenExpiresAt > now + 60_000) {
     return cachedAdminToken;
   }
 
-  // Shopify client_credentials endpoint expects x-www-form-urlencoded.
-  const body = new URLSearchParams();
-  body.set("grant_type", "client_credentials");
-  body.set("client_id", clientId);
-  body.set("client_secret", clientSecret);
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: clientId,
+    client_secret: clientSecret
+  });
 
   const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     },
-    body: body.toString()
+    body
   });
 
-  const data = await response.json().catch(() => ({}));
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_) {
+    data = { raw: text };
+  }
 
   if (!response.ok || !data.access_token) {
     throw new Error(`Failed to get Shopify Admin access token: ${JSON.stringify(data)}`);
   }
 
   cachedAdminToken = data.access_token;
-  const expiresInSeconds = Number(data.expires_in || 86399);
-  cachedAdminTokenExpiresAt = Date.now() + expiresInSeconds * 1000;
-
+  cachedAdminTokenExpiresAt = Date.now() + Number(data.expires_in || 86399) * 1000;
   return cachedAdminToken;
 }
 
-async function shopifyAdminGraphQL(query, variables) {
-  const shop = String(process.env.SHOPIFY_STORE_DOMAIN || "").trim();
-  const version = process.env.SHOPIFY_API_VERSION || "2026-04";
+async function shopifyAdminGraphQL(query, variables = {}) {
+  const shop = cleanString(process.env.SHOPIFY_STORE_DOMAIN);
+  const version = cleanString(process.env.SHOPIFY_API_VERSION) || "2026-04";
   const token = await getAdminAccessToken();
 
   const response = await fetch(`https://${shop}/admin/api/${version}/graphql.json`, {
@@ -83,90 +158,196 @@ async function shopifyAdminGraphQL(query, variables) {
     body: JSON.stringify({ query, variables })
   });
 
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok || data.errors) {
-    throw new Error(JSON.stringify(data.errors || data));
+  const text = await response.text();
+  let payload = {};
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch (_) {
+    payload = { raw: text };
   }
 
-  return data.data;
+  if (!response.ok) {
+    throw new Error(`Shopify Admin GraphQL HTTP ${response.status}: ${JSON.stringify(payload)}`);
+  }
+
+  if (payload.errors && payload.errors.length) {
+    throw new Error(`Shopify Admin GraphQL errors: ${JSON.stringify(payload.errors)}`);
+  }
+
+  return payload.data;
+}
+
+async function findCustomerByPhone(phone) {
+  const query = `
+    query PakCivoCustomerByPhone($identifier: CustomerIdentifierInput!) {
+      customer: customerByIdentifier(identifier: $identifier) {
+        id
+        firstName
+        lastName
+        displayName
+        tags
+        defaultPhoneNumber {
+          phoneNumber
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyAdminGraphQL(query, {
+    identifier: { phoneNumber: phone }
+  });
+
+  return data && data.customer ? data.customer : null;
+}
+
+async function addTagsToCustomer(customerId) {
+  const mutation = `
+    mutation PakCivoTagsAdd($id: ID!, $tags: [String!]!) {
+      tagsAdd(id: $id, tags: $tags) {
+        node {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyAdminGraphQL(mutation, {
+    id: customerId,
+    tags: ["pakcivo-lead", "tokopakcivo-chat"]
+  });
+
+  const userErrors = data?.tagsAdd?.userErrors || [];
+  if (userErrors.length) {
+    throw new Error(`Shopify tagsAdd userErrors: ${JSON.stringify(userErrors)}`);
+  }
+
+  return true;
+}
+
+function formatCustomer(customer, fallbackPhone) {
+  const phone = customer?.phone || customer?.defaultPhoneNumber?.phoneNumber || fallbackPhone;
+  return {
+    id: customer?.id,
+    firstName: customer?.firstName || "",
+    lastName: customer?.lastName || "",
+    phone,
+    tags: customer?.tags || []
+  };
+}
+
+async function createOrUpdateLeadCustomer({ name, whatsapp, source }) {
+  const fullName = cleanString(name);
+  const phone = normalizeIndonesianWhatsApp(whatsapp);
+  const { firstName, lastName } = splitName(fullName);
+  const cleanSource = cleanString(source) || "tokopakcivo";
+
+  const mutation = `
+    mutation PakCivoCustomerSet($identifier: CustomerSetIdentifiers, $input: CustomerSetInput!) {
+      customerSet(identifier: $identifier, input: $input) {
+        customer {
+          id
+          firstName
+          lastName
+          phone
+          tags
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const input = {
+    firstName,
+    lastName,
+    phone,
+    locale: "id",
+    note: `Lead masuk dari PakCivo Live.\nSource: ${cleanSource}\nLast seen: ${new Date().toISOString()}`,
+    tags: ["pakcivo-lead", "tokopakcivo-chat"]
+  };
+
+  // Main path: true upsert by phone.
+  const data = await shopifyAdminGraphQL(mutation, {
+    identifier: { phone },
+    input
+  });
+
+  const result = data?.customerSet;
+  const userErrors = result?.userErrors || [];
+
+  if (!userErrors.length && result?.customer) {
+    return {
+      status: "created_or_updated",
+      customer: formatCustomer(result.customer, phone)
+    };
+  }
+
+  // Fallback path: if Shopify says the phone exists, find existing customer and return success.
+  // This prevents the frontend from blocking returning customers.
+  if (hasDuplicatePhoneError(userErrors)) {
+    const existing = await findCustomerByPhone(phone);
+    if (existing?.id) {
+      await addTagsToCustomer(existing.id);
+      return {
+        status: "existing_phone_reused",
+        customer: formatCustomer(existing, phone)
+      };
+    }
+  }
+
+  throw new Error(`Shopify customerSet userErrors: ${JSON.stringify(userErrors)}`);
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  setCors(res);
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method === "OPTIONS") {
+    return json(res, 200, { ok: true });
+  }
 
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+    return json(res, 405, { ok: false, error: "Method not allowed" });
   }
 
   try {
-    const { name, whatsapp, source } = req.body || {};
-    const customerName = cleanName(name);
-    const normalizedPhone = normalizeIndonesianWhatsApp(whatsapp);
+    const body = await readBody(req);
+    const name = cleanString(body.name);
+    const whatsapp = cleanString(body.whatsapp || body.phone || body.wa);
+    const phone = normalizeIndonesianWhatsApp(whatsapp);
 
-    if (!customerName || customerName.length < 2) {
-      return res.status(400).json({ ok: false, error: "Nama wajib diisi minimal 2 huruf." });
+    if (!name || name.length < 2) {
+      return json(res, 400, { ok: false, error: "Nama wajib diisi." });
     }
 
-    if (!normalizedPhone) {
-      return res.status(400).json({ ok: false, error: "Nomor WhatsApp tidak valid. Contoh: 081280799493" });
+    if (!phone || !phone.startsWith("+62") || phone.length < 10) {
+      return json(res, 400, { ok: false, error: "Nomor WhatsApp tidak valid. Gunakan format 08xx atau +62xx." });
     }
 
-    const { firstName, lastName } = splitName(customerName);
+    const result = await createOrUpdateLeadCustomer({
+      name,
+      whatsapp: phone,
+      source: body.source || "pakcivo-live"
+    });
 
-    const mutation = `
-      mutation PakCivoCustomerSet($input: CustomerSetInput!) {
-        customerSet(input: $input) {
-          customer {
-            id
-            firstName
-            lastName
-            phone
-            tags
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const note = [
-      "Lead masuk dari PakCivo Live.",
-      `Source: ${source || "tokopakcivo"}`,
-      `First seen: ${new Date().toISOString()}`
-    ].join("\n");
-
-    const variables = {
-      input: {
-        firstName,
-        lastName,
-        phone: normalizedPhone,
-        locale: "id",
-        note,
-        tags: ["pakcivo-lead", "tokopakcivo-chat"]
-      }
-    };
-
-    const data = await shopifyAdminGraphQL(mutation, variables);
-    const result = data.customerSet;
-
-    if (result.userErrors && result.userErrors.length > 0) {
-      return res.status(400).json({ ok: false, errors: result.userErrors });
-    }
-
-    return res.status(200).json({
+    return json(res, 200, {
       ok: true,
+      status: result.status,
       customer: result.customer,
-      lead: { name: customerName, whatsapp: normalizedPhone }
+      lead: {
+        name,
+        whatsapp: phone
+      }
     });
   } catch (error) {
-    console.error("Lead handler error:", error);
-    return res.status(500).json({ ok: false, error: error.message || "Lead capture failed" });
+    return json(res, 500, {
+      ok: false,
+      error: normalizeErrorMessage(error)
+    });
   }
 };

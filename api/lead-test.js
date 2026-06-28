@@ -1,12 +1,22 @@
 // api/lead-test.js
-// Browser test endpoint for /api/lead
+// Opens a browser GET endpoint to test api/lead.js via internal POST.
+
+function json(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(payload));
+}
 
 module.exports = async function handler(req, res) {
   try {
-    const baseUrl = `https://${req.headers.host}`;
-    const response = await fetch(`${baseUrl}/api/lead`, {
+    const host = req.headers.host;
+    const protocol = host && host.includes("localhost") ? "http" : "https";
+
+    const response = await fetch(`${protocol}://${host}/api/lead`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         name: "Test Pakcivo",
         whatsapp: "081280799493",
@@ -15,8 +25,11 @@ module.exports = async function handler(req, res) {
     });
 
     const data = await response.json();
-    return res.status(response.status).json(data);
+    return json(res, response.status, data);
   } catch (error) {
-    return res.status(500).json({ ok: false, error: error.message });
+    return json(res, 500, {
+      ok: false,
+      error: error?.message || String(error)
+    });
   }
 };
