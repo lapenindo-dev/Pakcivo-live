@@ -22,6 +22,8 @@ export default async function handler(req, res) {
               title
               handle
               description
+              tags
+              productType
               featuredImage {
                 url
                 altText
@@ -33,7 +35,6 @@ export default async function handler(req, res) {
                     title
                     sku
                     availableForSale
-                    quantityAvailable
                     price {
                       amount
                       currencyCode
@@ -69,6 +70,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       shop,
+      count: data.data.products.edges.length,
       products: data.data.products.edges.map(edge => edge.node)
     });
   } catch (error) {
