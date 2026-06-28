@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": token
+        "Shopify-Storefront-Private-Token": token
       },
       body: JSON.stringify({ query })
     });
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok || data.errors) {
-      return res.status(500).json({
+      return res.status(response.status || 500).json({
         ok: false,
         status: response.status,
         errors: data.errors || data
