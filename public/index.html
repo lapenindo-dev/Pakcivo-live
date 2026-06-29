@@ -149,7 +149,7 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── PAK CIVO REPLY ── */
 .pc-reply {
-  position: absolute; left: 14px; right: 14px; bottom: 110px; z-index: 23;
+  position: absolute; left: 14px; right: 14px; bottom: 154px; z-index: 35;
   background: rgba(8,6,4,0.92); backdrop-filter: blur(14px);
   border: 1px solid rgba(200,133,74,0.35); border-radius: 6px 14px 14px 14px;
   padding: 10px 14px; display: none;
@@ -175,7 +175,7 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── PRODUCT CARD ── */
 .product-card {
-  position: absolute; left: 14px; right: 60px; bottom: 62px; z-index: 22;
+  position: absolute; left: 14px; right: 60px; bottom: 84px; z-index: 36;
   background: rgba(8,6,4,0.25); backdrop-filter: blur(6px);
   border: 1px solid rgba(200,133,74,0.2); border-radius: 10px;
   padding: 7px 10px; display: flex; align-items: center; gap: 8px;
@@ -194,7 +194,7 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 }
 
 /* ── PRODUCT STRIP ── */
-.product-strip{position:absolute;bottom:108px;left:0;right:0;z-index:22;padding:0 14px;}
+.product-strip{position:absolute;bottom:132px;left:0;right:0;z-index:34;padding:0 14px;}
 .ps-scroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
 .ps-scroll::-webkit-scrollbar{display:none;}
 .ps-chip {
@@ -208,7 +208,7 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 .ps-p{font-size:10px;color:var(--copper);font-weight:800;}
 
 /* ── QUICK CHIPS ── */
-.quick-chips{position:absolute;bottom:48px;left:14px;right:14px;z-index:23;display:none;flex-wrap:wrap;gap:5px;}
+.quick-chips{position:absolute;bottom:78px;left:14px;right:14px;z-index:37;display:none;flex-wrap:wrap;gap:5px;}
 .qchip{background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(200,133,74,0.3);color:rgba(200,133,74,0.95);font-size:11px;font-weight:700;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;}
 
 /* ── BOTTOM BAR ── */
@@ -433,7 +433,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
         <div class="pc-unit" id="pcUnit">/ 1 kg</div>
       </div>
     </div>
-    <button class="pc-cta" onclick="addToCart(event)">+ Keranjang</button>
+    <button type="button" class="pc-cta" onclick="addToCart(event)">+ Keranjang</button>
   </div>
 
   <!-- PRODUCT STRIP -->
@@ -989,6 +989,13 @@ async function addToCart(e){
   const oldText=btn.textContent;
   btn.disabled=true;
   btn.textContent="Membuat checkout...";
+
+  // Immediate visual feedback so user knows the tap/click is registered.
+  cartItems=[`${p.name} x1`];
+  cartCount=1;
+  document.getElementById("cartBadge").textContent=cartCount;
+  document.getElementById("cartSlbl").textContent=cartCount;
+
   try{
     const result=await createCheckoutForProduct(p,1);
     latestCheckoutUrl=result.checkoutUrl;
@@ -1005,6 +1012,11 @@ async function addToCart(e){
     speak(html);
   }catch(error){
     console.error("Add to cart failed:", error);
+    latestCheckoutUrl="";
+    cartItems=[];
+    cartCount=0;
+    document.getElementById("cartBadge").textContent=cartCount;
+    document.getElementById("cartSlbl").textContent=cartCount;
     const rb=document.getElementById("pcReply");
     const pcTextEl=document.getElementById("pcText");
     if(rb && pcTextEl){
@@ -1018,6 +1030,9 @@ async function addToCart(e){
     btn.textContent=oldText;
   }
 }
+window.addToCart = addToCart;
+window.showCart = showCart;
+
 function showCart(){
   if(latestCheckoutUrl){
     window.open(latestCheckoutUrl,"_blank");
