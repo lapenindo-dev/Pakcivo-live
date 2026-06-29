@@ -1,4 +1,5 @@
 // api/chat.js
+// v5.0.9 — catalog-wide Shopify fallback search for all product questions
 // Vercel Serverless Function — Pak Civo AI + Shopify Storefront API
 // CommonJS (Node.js 20, tanpa "type":"module")
 
@@ -69,6 +70,275 @@ function normalizeText(value) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+
+
+const GUARANTEED_BEST_SELLERS = [
+  {
+    id: "best-samcan-lokal-1kg",
+    title: "Samcan Lokal 1kg",
+    handle: "samcan-lokal-1kg",
+    description: "Best seller CIVO MEAT. Samcan lokal frozen vacuum pack 1kg.",
+    tags: ["best-seller", "samcan", "pork belly", "lokal"],
+    productType: "Best Seller",
+    image: null,
+    variants: [{ id: "", title: "Default Title", availableForSale: true, price: 130000, currencyCode: "IDR" }],
+    guaranteedBestSeller: true,
+  },
+  {
+    id: "best-babi-giling-500g",
+    title: "Babi Giling 500g",
+    handle: "babi-giling-500g",
+    description: "Best seller CIVO MEAT. Daging babi giling 500g untuk bakso, pangsit, bakmoy, tumisan, dan campuran masakan.",
+    tags: ["best-seller", "babi giling", "ground pork", "minced pork"],
+    productType: "Best Seller",
+    image: null,
+    variants: [{ id: "", title: "Default Title", availableForSale: true, price: 40000, currencyCode: "IDR" }],
+    guaranteedBestSeller: true,
+  },
+  {
+    id: "best-paikut-sop-500g",
+    title: "Paikut Sop 500g",
+    handle: "paikut-sop-500g",
+    description: "Best seller CIVO MEAT. Paikut/bakut potongan sop 500g untuk sup, rebusan, dan masakan kuah.",
+    tags: ["best-seller", "paikut", "bakut", "pork ribs", "sop"],
+    productType: "Best Seller",
+    image: null,
+    variants: [{ id: "", title: "Default Title", availableForSale: true, price: 50000, currencyCode: "IDR" }],
+    guaranteedBestSeller: true,
+  },
+  {
+    id: "best-kapsim-1kg",
+    title: "Kapsim 1kg",
+    handle: "kapsim-1kg",
+    description: "Best seller CIVO MEAT. Kapsim/shoulder 1kg untuk tumis, babi kecap, sup, dan masakan harian.",
+    tags: ["best-seller", "kapsim", "shoulder", "pork shoulder", "kasim"],
+    productType: "Best Seller",
+    image: null,
+    variants: [{ id: "", title: "Default Title", availableForSale: true, price: 80000, currencyCode: "IDR" }],
+    guaranteedBestSeller: true,
+  },
+  {
+    id: "best-samcan-import-1kg",
+    title: "Samcan Import 1kg",
+    handle: "samcan-import-1kg",
+    description: "Best seller CIVO MEAT. Samcan import 1kg dengan potongan konsisten untuk grill, hotpot, Korean BBQ, dan masakan premium.",
+    tags: ["best-seller", "samcan", "pork belly", "import", "wuhua rou"],
+    productType: "Best Seller",
+    image: null,
+    variants: [{ id: "", title: "Default Title", availableForSale: true, price: 150000, currencyCode: "IDR" }],
+    guaranteedBestSeller: true,
+  },
+];
+
+function shopifySearchAliases(rawQuery) {
+  const q = normalizeText(rawQuery);
+  const aliases = new Set([String(rawQuery || "").trim()].filter(Boolean));
+  const add = (arr) => arr.forEach((v) => aliases.add(v));
+
+  if (/samcan|pork belly|wuhua/.test(q) && /lokal|local/.test(q)) {
+    add(["Samcan Lokal 1kg", "Samcan Babi Pork Belly Lokal 1kg", "Pork Belly Lokal", "samcan lokal"]);
+  }
+  if (/giling|ground|minced|mince/.test(q)) {
+    add(["Babi Giling 500g", "Daging Babi Giling 500g", "Babi Giling", "giling babi", "ground pork", "minced pork"]);
+  }
+  if (/paikut|bakut|bak kut|ribs?|iga|sop/.test(q)) {
+    add(["Paikut Sop 500g", "Paikut Sop", "Paikut", "Bakut", "Bak Kut", "Pork Ribs Sop", "ribs chopped", "iga babi"]);
+  }
+  if (/kapsim|kasim|shoulder|collar/.test(q)) {
+    add(["Kapsim 1kg", "Kapsim Babi 1kg", "Shoulder Babi 1kg", "Pork Shoulder", "kasim"]);
+  }
+  if (/samcan|pork belly|wuhua/.test(q) && /import|impor/.test(q)) {
+    add(["Samcan Import 1kg", "Pork Belly Samcan Import 1kg", "Pork Belly Import", "Wuhua Rou Import"]);
+  }
+
+  // Generic category aliases. Shopify search can miss Indonesian category words, so we try common title variants too.
+  if (/jeroan|organ|offal/.test(q)) {
+    add(["jeroan", "organ", "offal", "jantung", "hati", "usus", "paru", "lidah", "ginjal", "kuping", "telinga", "pork organ"]);
+  }
+  if (/jantung|heart/.test(q)) add(["jantung", "jantung babi", "pork heart", "heart"]);
+  if (/hati|liver|ati/.test(q)) add(["hati", "hati babi", "pork liver", "liver"]);
+  if (/usus|intestine|intestines/.test(q)) add(["usus", "usus babi", "pork intestine", "intestine"]);
+  if (/paru|lung/.test(q)) add(["paru", "paru babi", "pork lung", "lung"]);
+  if (/ginjal|kidney/.test(q)) add(["ginjal", "ginjal babi", "pork kidney", "kidney"]);
+  if (/lidah|tongue/.test(q)) add(["lidah", "lidah babi", "pork tongue", "tongue"]);
+  if (/kuping|telinga|ear/.test(q)) add(["kuping", "telinga", "kuping babi", "pork ear", "ear"]);
+  if (/kaki|feet|pork feet|kikil/.test(q)) add(["kaki babi", "pork feet", "pork trotter", "trotter", "kaki"]);
+  if (/lemak|fat|minyak/.test(q)) add(["lemak babi", "pork fat", "fat", "lard"]);
+  if (/kulit|skin/.test(q)) add(["kulit babi", "pork skin", "skin"]);
+  if (/daging|meat/.test(q)) add(["daging babi", "pork meat", "pork"]);
+
+  return Array.from(aliases).filter(Boolean).slice(0, 12);
+}
+
+function bestSellerFallbackForQuery(rawQuery) {
+  const q = normalizeText(rawQuery);
+  if (!q) return [];
+  return GUARANTEED_BEST_SELLERS.filter((p) => {
+    const text = normalizeText(`${p.title} ${p.handle} ${p.description} ${p.tags.join(" ")}`);
+    if (/giling|ground|minced|mince/.test(q)) return /giling|ground|minced|mince/.test(text);
+    if (/paikut|bakut|bak kut|ribs?|iga|sop/.test(q)) return /paikut|bakut|ribs?|sop|iga/.test(text);
+    if (/kapsim|kasim|shoulder|collar/.test(q)) return /kapsim|kasim|shoulder/.test(text);
+    if (/samcan|pork belly|wuhua/.test(q) && /import|impor/.test(q)) return /samcan/.test(text) && /import/.test(text);
+    if (/samcan|pork belly|wuhua/.test(q) && /lokal|local/.test(q)) return /samcan/.test(text) && /lokal/.test(text);
+    return text.includes(q);
+  });
+}
+
+function productFromCatalogHint(hint) {
+  if (!hint || !hint.name) return null;
+  const priceText = String(hint.price || "").replace(",", ".");
+  let price = 0;
+  const m = priceText.match(/(\d+(?:\.\d+)?)/);
+  if (m) price = Math.round(Number(m[1]) * (/rb/i.test(priceText) ? 1000 : 1));
+  return {
+    id: hint.id || hint.variantId || hint.name,
+    title: hint.shopifyName || hint.name,
+    handle: hint.id || normalizeText(hint.name).replace(/\s+/g, "-"),
+    description: `Produk best seller CIVO MEAT${hint.unit ? ` ${hint.unit}` : ""}.`,
+    tags: ["best-seller", ...(Array.isArray(hint.shopifyQueries) ? hint.shopifyQueries : [])],
+    productType: "Best Seller",
+    image: hint.image || null,
+    variants: [{
+      id: hint.variantId || "",
+      title: "Default Title",
+      availableForSale: hint.availableForSale !== false,
+      price: price || 0,
+      currencyCode: "IDR",
+    }],
+    catalogHint: true,
+  };
+}
+
+function relevantCatalogHintProducts(catalogHints, rawQuery) {
+  const q = normalizeText(rawQuery);
+  if (!Array.isArray(catalogHints) || !q) return [];
+  return catalogHints
+    .map(productFromCatalogHint)
+    .filter(Boolean)
+    .filter((p) => {
+      const text = normalizeText(`${p.title} ${p.handle} ${p.description} ${p.tags.join(" ")}`);
+      return q.split(" ").some((term) => term.length >= 3 && text.includes(term)) ||
+        (/giling|ground|minced|mince/.test(q) && /giling|ground|minced|mince/.test(text)) ||
+        (/paikut|bakut|ribs?|iga|sop/.test(q) && /paikut|bakut|ribs?|iga|sop/.test(text)) ||
+        (/kapsim|kasim|shoulder/.test(q) && /kapsim|kasim|shoulder/.test(text));
+    });
+}
+
+function mergeProductLists(...lists) {
+  const merged = new Map();
+  for (const list of lists) {
+    for (const product of Array.isArray(list) ? list : []) {
+      if (!product) continue;
+      const key = product.id || product.handle || normalizeText(product.title);
+      if (!key) continue;
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, product);
+      } else {
+        // Prefer Shopify products with real variant ids/images over hints/fallbacks.
+        const hasRealVariant = product.variants?.some((v) => v?.id);
+        const existingRealVariant = existing.variants?.some((v) => v?.id);
+        if ((hasRealVariant && !existingRealVariant) || (product.image && !existing.image)) {
+          merged.set(key, { ...existing, ...product });
+        }
+      }
+    }
+  }
+  return Array.from(merged.values());
+}
+
+const PRODUCT_SEARCH_STOP_WORDS = new Set([
+  "ada", "apa", "apakah", "berapa", "harga", "mau", "saya", "aku", "kak", "pak", "civo",
+  "iya", "ya", "ok", "oke", "boleh", "checkout", "beli", "ambil", "masukkan", "masukin",
+  "ke", "keranjang", "tolong", "dong", "nih", "itu", "yang", "untuk", "buat", "produk", "ready",
+  "stok", "stock", "punya", "tersedia", "cari", "carikan", "jual", "jualan", "daging", "babi"
+]);
+
+function productSearchText(product) {
+  const variants = Array.isArray(product?.variants) ? product.variants.map((v) => v?.title || "").join(" ") : "";
+  return normalizeText([
+    product?.title,
+    product?.handle,
+    product?.description,
+    product?.productType,
+    Array.isArray(product?.tags) ? product.tags.join(" ") : "",
+    variants,
+  ].filter(Boolean).join(" "));
+}
+
+function expandedQueryTerms(rawQuery) {
+  const q = normalizeText(rawQuery);
+  const terms = new Set(q.split(" ").filter((w) => w.length >= 3 && !PRODUCT_SEARCH_STOP_WORDS.has(w)));
+  const add = (...items) => items.forEach((item) => String(item || "").split(/\s+/).forEach((w) => {
+    const n = normalizeText(w);
+    if (n && n.length >= 3 && !PRODUCT_SEARCH_STOP_WORDS.has(n)) terms.add(n);
+  }));
+
+  if (/jeroan|organ|offal/.test(q)) add("jeroan", "organ", "offal", "jantung", "heart", "hati", "liver", "usus", "intestine", "paru", "lung", "ginjal", "kidney", "lidah", "tongue", "kuping", "telinga", "ear");
+  if (/jantung|heart/.test(q)) add("jantung", "heart");
+  if (/hati|liver|ati/.test(q)) add("hati", "liver", "ati");
+  if (/usus|intestine/.test(q)) add("usus", "intestine");
+  if (/paru|lung/.test(q)) add("paru", "lung");
+  if (/ginjal|kidney/.test(q)) add("ginjal", "kidney");
+  if (/lidah|tongue/.test(q)) add("lidah", "tongue");
+  if (/kuping|telinga|ear/.test(q)) add("kuping", "telinga", "ear");
+  if (/kaki|feet|trotter|kikil/.test(q)) add("kaki", "feet", "trotter", "kikil");
+  if (/lemak|fat|lard/.test(q)) add("lemak", "fat", "lard");
+  if (/kulit|skin/.test(q)) add("kulit", "skin");
+
+  return Array.from(terms);
+}
+
+function scoreProductForQuery(product, rawQuery) {
+  const q = normalizeText(rawQuery);
+  const text = productSearchText(product);
+  if (!q || !text) return 0;
+  let score = 0;
+  const terms = expandedQueryTerms(rawQuery);
+
+  if (text.includes(q)) score += 80;
+  for (const term of terms) {
+    if (text.includes(term)) score += term.length >= 6 ? 18 : 10;
+  }
+
+  const phraseChecks = [
+    [/jantung|heart/, /jantung|heart/],
+    [/hati|liver|ati/, /hati|liver|ati/],
+    [/usus|intestine/, /usus|intestine/],
+    [/paru|lung/, /paru|lung/],
+    [/ginjal|kidney/, /ginjal|kidney/],
+    [/lidah|tongue/, /lidah|tongue/],
+    [/kuping|telinga|ear/, /kuping|telinga|ear/],
+    [/kaki|feet|trotter|kikil/, /kaki|feet|trotter|kikil/],
+    [/giling|ground|minced|mince/, /giling|ground|minced|mince/],
+    [/paikut|bakut|ribs?|iga|sop/, /paikut|bakut|ribs?|iga|sop/],
+    [/kapsim|kasim|shoulder|collar/, /kapsim|kasim|shoulder|collar/],
+    [/samcan|pork\s*belly|wuhua/, /samcan|pork\s*belly|wuhua/],
+  ];
+  for (const [queryRe, textRe] of phraseChecks) {
+    if (queryRe.test(q) && textRe.test(text)) score += 50;
+  }
+
+  if (/jeroan|organ|offal/.test(q) && /jantung|heart|hati|liver|usus|intestine|paru|lung|ginjal|kidney|lidah|tongue|kuping|telinga|ear/.test(text)) score += 45;
+  if (product?.variants?.some((v) => v?.availableForSale !== false)) score += 3;
+  if (product?.image) score += 1;
+  return score;
+}
+
+function rankProductsForQuery(products, rawQuery, limit = 12) {
+  const q = normalizeText(rawQuery);
+  if (!q) return (Array.isArray(products) ? products : []).slice(0, limit);
+  return (Array.isArray(products) ? products : [])
+    .map((product) => ({ product, score: scoreProductForQuery(product, rawQuery) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((item) => item.product);
+}
+
+
+
 
 
 
@@ -176,6 +446,12 @@ function fallbackProductsForQuery(rawQuery) {
     bbq: ["samgyeopsal", "slice", "bbq", "pork belly", "samcan"],
     barbeque: ["samgyeopsal", "slice", "bbq", "pork belly", "samcan"],
     bacon: ["bacon", "smoked"],
+    giling: ["giling", "ground", "minced", "mince"],
+    "babi giling": ["giling", "ground", "minced", "mince"],
+    paikut: ["paikut", "bakut", "ribs", "iga", "sop"],
+    bakut: ["paikut", "bakut", "ribs", "iga", "sop"],
+    kapsim: ["kapsim", "kasim", "shoulder", "collar"],
+    shoulder: ["kapsim", "kasim", "shoulder", "collar"],
     kecap: ["kecap", "dadu"],
   };
 
@@ -230,6 +506,32 @@ function extractSearchQuery(messages) {
     "barbeque",
     "sop",
     "steak",
+    "jeroan",
+    "organ",
+    "offal",
+    "jantung",
+    "heart",
+    "hati",
+    "liver",
+    "ati",
+    "usus",
+    "intestine",
+    "paru",
+    "lung",
+    "ginjal",
+    "kidney",
+    "lidah",
+    "tongue",
+    "kuping",
+    "telinga",
+    "ear",
+    "kaki",
+    "trotter",
+    "feet",
+    "lemak",
+    "fat",
+    "kulit",
+    "skin",
   ];
 
   for (const keyword of productKeywords) {
@@ -354,15 +656,10 @@ async function shopifyGraphQL(query, variables = {}) {
   return data.data;
 }
 
-async function searchShopifyProducts(rawQuery) {
-  const queryText = String(rawQuery || "").trim();
-  const cacheKey = queryText.toLowerCase();
-  const cached = getCachedProducts(cacheKey);
-  if (cached) return cached;
-
+async function runSingleShopifyProductSearch(queryText, first = 20) {
   const query = `
-    query SearchProducts($query: String) {
-      products(first: 12, query: $query) {
+    query SearchProducts($query: String, $first: Int!) {
+      products(first: $first, query: $query) {
         edges {
           node {
             id
@@ -394,9 +691,10 @@ async function searchShopifyProducts(rawQuery) {
     }
   `;
 
-  const data = await shopifyGraphQL(query, { query: queryText || null });
+  const safeFirst = Math.max(1, Math.min(Number(first || 20), 250));
+  const data = await shopifyGraphQL(query, { query: queryText || null, first: safeFirst });
 
-  const products = data.products.edges.map((edge) => {
+  return data.products.edges.map((edge) => {
     const product = edge.node;
 
     return {
@@ -419,13 +717,57 @@ async function searchShopifyProducts(rawQuery) {
       }),
     };
   });
+}
 
-  if (products.length === 0) {
-    products = fallbackProductsForQuery(queryText);
-  }
-
+async function fetchCatalogProducts() {
+  const cacheKey = "v509:catalog:250";
+  const cached = getCachedProducts(cacheKey);
+  if (cached) return cached;
+  const products = await runSingleShopifyProductSearch("", 250);
   setCachedProducts(cacheKey, products);
   return products;
+}
+
+async function searchShopifyProducts(rawQuery) {
+  const queryText = String(rawQuery || "").trim();
+  const cacheKey = `v509:${queryText.toLowerCase()}`;
+  const cached = getCachedProducts(cacheKey);
+  if (cached) return cached;
+
+  const aliases = shopifySearchAliases(queryText);
+  let products = [];
+
+  for (const q of aliases) {
+    try {
+      const result = await runSingleShopifyProductSearch(q, 20);
+      products = mergeProductLists(products, result);
+      if (products.length >= 12 && aliases.length > 2) break;
+    } catch (error) {
+      console.warn("Shopify alias search skipped:", q, error.message);
+    }
+  }
+
+  let ranked = rankProductsForQuery(products, queryText, 12);
+
+  // Critical production fallback: if Shopify's query search misses a product title/category,
+  // fetch the broader Storefront catalog and locally rank it. This is what catches queries like "jeroan jantung".
+  if (queryText && ranked.length < 3) {
+    try {
+      const catalog = await fetchCatalogProducts();
+      const rankedCatalog = rankProductsForQuery(catalog, queryText, 12);
+      ranked = mergeProductLists(ranked, rankedCatalog).slice(0, 12);
+    } catch (catalogError) {
+      console.warn("Shopify catalog fallback skipped:", catalogError.message);
+    }
+  }
+
+  if (ranked.length === 0) {
+    ranked = rankProductsForQuery(fallbackProductsForQuery(queryText), queryText, 8);
+  }
+
+  ranked = mergeProductLists(ranked, bestSellerFallbackForQuery(queryText));
+  setCachedProducts(cacheKey, ranked);
+  return ranked;
 }
 
 async function createShopifyCart(variantId, quantity) {
@@ -506,7 +848,7 @@ function buildProductContext(products) {
         .map((variant, vIndex) => {
           return [
             `Varian ${vIndex + 1}`,
-            `variantId=${variant.id}`,
+            `variantId=${variant.id || "belum_terhubung"}`,
             `namaVarian=${variant.title}`,
             `harga=${formatRupiahShort(variant.price)} (${variant.price} ${variant.currencyCode})`,
             `availableForSale=${variant.availableForSale}`,
@@ -518,6 +860,7 @@ function buildProductContext(products) {
         `${index + 1}. ${product.title}`,
         product.description ? `   Deskripsi: ${product.description}` : "   Deskripsi: -",
         product.productType ? `   Tipe: ${product.productType}` : "   Tipe: -",
+        product.guaranteedBestSeller || product.catalogHint ? "   Catatan: produk ini termasuk 5 best seller display Pak Civo; jangan jawab tidak ada kecuali availableForSale=false." : "",
         product.tags?.length ? `   Tags: ${product.tags.join(", ")}` : "   Tags: -",
         `   Handle: ${product.handle}`,
         `   Varian:\n    ${variants}`,
@@ -700,11 +1043,11 @@ ATURAN SUMBER DATA PRODUK:
 - Produk, harga, availability, dan varian HANYA boleh berasal dari DATA PRODUK SHOPIFY di bawah.
 - Jangan memakai daftar produk lama, jangan mengarang harga, jangan mengarang stok.
 - Jangan tampilkan SKU ke customer.
-- Kalau produk tidak ditemukan di DATA PRODUK SHOPIFY, bilang belum ketemu dan minta kata kunci lain.
+- DATA PRODUK SHOPIFY sudah berisi hasil search spesifik + catalog-wide fallback dari Shopify. Jawab berdasarkan data ini. Jangan menjawab “tidak ada” bila ada produk yang relevan di data, termasuk kategori jeroan/jantung/hati/usus/paru/lidah/kaki/kulit/lemak. Kalau data tetap tidak berisi produk relevan, bilang “Pak Civo belum ketemu di katalog yang terbaca” dan minta kata kunci lain. KECUALI untuk 5 best seller display: Samcan Lokal 1kg, Babi Giling 500g, Paikut Sop 500g, Kapsim 1kg, Samcan Import 1kg — produk ini wajib dianggap ada bila muncul di DATA PRODUK SHOPIFY/hint best seller dan availableForSale bukan false.
 - Kalau availableForSale=false, jelaskan bahwa produk sedang tidak bisa dibeli.
 
 ATURAN MENJAWAB PRODUK:
-- Kalau customer tanya produk spesifik, sebutkan maksimal 2 pilihan paling relevan.
+- Kalau customer tanya produk spesifik atau kategori seperti jeroan, sebutkan maksimal 2 pilihan paling relevan dari DATA PRODUK SHOPIFY.
 - Setiap menyebut produk, sertakan harga singkat, contoh: "Bacon 500g 60rb".
 - Boleh jelaskan beda produk berdasarkan title, description, productType, dan tags Shopify.
 - Kalau description Shopify kosong, jangan mengarang terlalu detail. Jelaskan secara umum dan singkat.
@@ -714,7 +1057,7 @@ ATURAN CHECKOUT SHOPIFY:
 - Jika customer baru tertarik, tanya konfirmasi dulu: "Mau Pak Civo buatkan checkout Shopify sekarang, Kak?"
 - Jika customer sudah jelas konfirmasi beli/checkout/ambil/masukkan/iya/ok/boleh dan produk sudah jelas, sisipkan command internal persis format:
   <<SHOPIFY_CART|VARIANT_ID|QTY>>
-- Ganti VARIANT_ID dengan variantId dari DATA PRODUK SHOPIFY.
+- Ganti VARIANT_ID dengan variantId dari DATA PRODUK SHOPIFY. Jika variantId tertulis "belum_terhubung" atau kosong, jangan buat command checkout; arahkan customer klik tombol + Keranjang/product card.
 - QTY harus angka. Jika customer tidak menyebut jumlah, pakai 1.
 - Command internal jangan dijelaskan ke customer.
 - Setelah command, tulis natural: "Siap Kak, Pak Civo buatkan link checkout Shopify-nya ya."
@@ -874,7 +1217,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { messages } = parseBody(req);
+    const { messages, catalogHints } = parseBody(req);
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });
@@ -902,6 +1245,8 @@ module.exports = async function handler(req, res) {
     let products = [];
     try {
       products = await searchShopifyProducts(searchQuery);
+      products = mergeProductLists(products, relevantCatalogHintProducts(catalogHints, searchQuery));
+      products = rankProductsForQuery(products, searchQuery, 12);
 
       // Fallback: jika customer bertanya umum atau query tidak cocok, ambil produk awal.
       if (products.length === 0 && searchQuery) {
@@ -909,11 +1254,11 @@ module.exports = async function handler(req, res) {
       }
     } catch (shopifyError) {
       console.error("Shopify product fetch error:", shopifyError.message);
-      products = fallbackProductsForQuery(searchQuery);
+      products = mergeProductLists(fallbackProductsForQuery(searchQuery), relevantCatalogHintProducts(catalogHints, searchQuery), bestSellerFallbackForQuery(searchQuery));
     }
 
     if (!products.length) {
-      products = fallbackProductsForQuery(searchQuery);
+      products = mergeProductLists(fallbackProductsForQuery(searchQuery), relevantCatalogHintProducts(catalogHints, searchQuery), bestSellerFallbackForQuery(searchQuery));
     }
 
     const productContext = buildProductContext(products);
