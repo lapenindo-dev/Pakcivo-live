@@ -5,7 +5,7 @@
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // ── RATE LIMITER ─────────────────────────────────────────────
-// Max 15 requests per IP per minute
+// Max 30 requests per IP per minute
 const _rateMap = new Map();
 function checkRateLimit(req) {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() 
@@ -15,7 +15,7 @@ function checkRateLimit(req) {
   
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute
-  const maxRequests = 15;
+  const maxRequests = 30;
 
   if (!_rateMap.has(ip)) {
     _rateMap.set(ip, { count: 1, start: now });
@@ -50,7 +50,7 @@ function cleanupRateMap() {
 // ─────────────────────────────────────────────────────────────
 
 
-module.exports.config = { maxDuration: 15 };
+module.exports.config = { maxDuration: 20 };
 
 const _audioCache = new Map();
 const MAX_CACHE_ITEMS = 80;
@@ -269,6 +269,22 @@ function normalizeForSpeech(text) {
   return cleanDoubleSpaces(t);
 }
 
+function safeSpeechLimit(text, maxChars) {
+  const value = cleanDoubleSpaces(String(text || ""));
+  if (value.length <= maxChars) return value;
+
+  const soft = value.slice(0, maxChars);
+  const lastPunct = Math.max(soft.lastIndexOf("."), soft.lastIndexOf("!"), soft.lastIndexOf("?"));
+  if (lastPunct >= 120) return cleanDoubleSpaces(soft.slice(0, lastPunct + 1));
+
+  const lastComma = Math.max(soft.lastIndexOf(","), soft.lastIndexOf(";"));
+  if (lastComma >= 140) return cleanDoubleSpaces(soft.slice(0, lastComma) + ".");
+
+  const lastSpace = soft.lastIndexOf(" ");
+  const trimmed = cleanDoubleSpaces(lastSpace >= 120 ? soft.slice(0, lastSpace) : soft);
+  return /[.!?]$/.test(trimmed) ? trimmed : trimmed + ".";
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -302,16 +318,17 @@ module.exports = async function handler(req, res) {
       .replace(/https?:\/\/\S+/gi, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 260);
+      .slice(0, 420);
 
-    const speechText = normalizeForSpeech(cleanText).slice(0, 360);
+    let speechText = normalizeForSpeech(cleanText);
+    speechText = safeSpeechLimit(speechText, 520);
 
     if (speechText.length === 0) {
       return res.status(400).json({ error: "Teks kosong setelah dibersihkan." });
     }
 
     const voice = process.env.OPENAI_TTS_VOICE || "onyx";
-    const speed = Number(process.env.OPENAI_TTS_SPEED || 1.12);
+    const speed = Number(process.env.OPENAI_TTS_SPEED || 1.06);
     const cacheKey = makeCacheKey(speechText, voice, speed);
     const cached = cacheGet(cacheKey);
 
@@ -322,6 +339,9 @@ module.exports = async function handler(req, res) {
       res.setHeader("X-TTS-Cache", "HIT");
       return res.status(200).send(cached);
     }
+
+    const openaiController = new AbortController();
+    const openaiTimeout = setTimeout(() => openaiController.abort(), 14500);
 
     const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
@@ -336,7 +356,8 @@ module.exports = async function handler(req, res) {
         response_format: "mp3",
         speed,
       }),
-    });
+      signal: openaiController.signal,
+    }).finally(() => clearTimeout(openaiTimeout));
 
     if (!ttsRes.ok) {
       const errText = await ttsRes.text();
