@@ -529,6 +529,166 @@ function buildProductContext(products) {
     .join("\n\n");
 }
 
+// ── FAQ TEMPLATES ─────────────────────────────────────────────
+// Jawaban instan tanpa LLM call. Keyword matching → skip Gemini = 0ms delay.
+// Setiap entry: { keywords: [...], reply: "..." }
+// Match logic: ALL keywords in entry must appear in normalized user message.
+const FAQ_TEMPLATES = [
+  // ── GREETING ──
+  {
+    keywords: ["halo"],
+    reply: "Halo Kak! 👋 Selamat datang di CIVO MEAT. Mau cari daging apa hari ini? Pak Civo siap bantu pilihkan yang pas! 😊",
+  },
+  {
+    keywords: ["hai"],
+    reply: "Hai Kak! 👋 Ada yang bisa Pak Civo bantu? Mau cari produk daging babi atau butuh rekomendasi masakan? 😊",
+  },
+
+  // ── PENGIRIMAN / DELIVERY ──
+  {
+    keywords: ["ongkir"],
+    reply: "Ongkir tergantung lokasi Kak, dihitung otomatis pas checkout Shopify. Untuk area Jakarta & Tangerang biasanya terjangkau — mau Pak Civo buatkan checkout dulu biar keliatan ongkirnya? 😊",
+  },
+  {
+    keywords: ["pengiriman", "berapa", "lama"],
+    reply: "Pengiriman same-day (order sebelum jam 14:00) dan instant delivery (sebelum jam 16:00) untuk area Jakarta & Tangerang Kak! Luar area biasanya 1-2 hari kerja 📦",
+  },
+  {
+    keywords: ["kirim", "luar", "kota"],
+    reply: "Bisa Kak! Kita kirim pakai packaging vacuum frozen + styrofoam. Untuk luar Jabodetabek, pengiriman lewat ekspedisi yang support frozen. Bandung, Semarang, Surabaya kita ada cabang juga lho! 📦",
+  },
+  {
+    keywords: ["jam", "cutoff"],
+    reply: "Cutoff order same-day jam 14:00, instant delivery jam 16:00 Kak. Lewat dari itu, dikirim besok paginya ya 📦",
+  },
+  {
+    keywords: ["same", "day"],
+    reply: "Same-day delivery bisa Kak! Pastikan order sebelum jam 14:00 ya. Untuk instant delivery, cutoff jam 16:00 🚀",
+  },
+
+  // ── PEMBAYARAN ──
+  {
+    keywords: ["bayar", "gimana"],
+    reply: "Pembayaran lewat checkout Shopify Kak — bisa transfer bank, e-wallet, atau QRIS. Tinggal pilih pas di halaman checkout 💳",
+  },
+  {
+    keywords: ["qris"],
+    reply: "QRIS tersedia Kak! Pas checkout Shopify, pilih metode pembayaran QRIS — tinggal scan dari e-wallet atau m-banking mana aja 💳",
+  },
+  {
+    keywords: ["transfer", "bank"],
+    reply: "Transfer bank bisa Kak, tersedia di halaman checkout Shopify. Support BCA, Mandiri, BNI, dan bank lainnya 💳",
+  },
+
+  // ── CABANG / LOKASI ──
+  {
+    keywords: ["cabang", "mana"],
+    reply: "CIVO MEAT punya 8 cabang Kak: Tangerang, Serpong, Jakarta Barat, Jakarta Pusat, Jakarta Utara (Sunter), Bandung, Semarang, dan Surabaya 📍 Mau tahu alamat cabang yang mana?",
+  },
+  {
+    keywords: ["alamat"],
+    reply: "Mau tahu alamat cabang mana Kak? Kita ada di: Tangerang, Serpong, Jakarta Barat, Jakarta Pusat, Sunter, Bandung, Semarang, Surabaya. Sebut kotanya ya! 📍",
+  },
+
+  // ── MINIMUM ORDER ──
+  {
+    keywords: ["minimum", "order"],
+    reply: "Tidak ada minimum order Kak! Mau beli 500g satu pack juga boleh 👍 Tapi kalau belanja Rp500rb ke atas dapet diskon 3% otomatis lho 😉",
+  },
+  {
+    keywords: ["minimal", "belanja"],
+    reply: "Nggak ada minimal belanja Kak! Bebas mau order berapa aja. Oh ya, Rp500rb ke atas otomatis dapet diskon 3% 😉",
+  },
+
+  // ── KOMPLAIN ──
+  {
+    keywords: ["komplain"],
+    reply: "Kalau ada keluhan, langsung foto produknya dan kirim ke WhatsApp admin 0817-1717-9291 ya Kak. Kita proses dalam 2×24 jam. CIVO MEAT jamin kualitas! 🙏",
+  },
+  {
+    keywords: ["rusak"],
+    reply: "Waduh maaf Kak 🙏 Langsung foto produknya kirim ke WA admin 0817-1717-9291 ya, kita proses penggantian dalam 2×24 jam!",
+  },
+
+  // ── PENYIMPANAN ──
+  {
+    keywords: ["simpan", "berapa", "lama"],
+    reply: "Produk frozen vacuum pack kita tahan 3-6 bulan di freezer Kak. Setelah dicairkan, sebaiknya dimasak dalam 24 jam ya ❄️",
+  },
+  {
+    keywords: ["freezer"],
+    reply: "Simpan di freezer ya Kak, tahan 3-6 bulan dalam kemasan vacuum. Kalau mau pakai, pindahin ke chiller semalaman untuk thawing pelan-pelan — hasilnya lebih bagus ❄️",
+  },
+
+  // ── SAMCAN ON vs OFF ──
+  {
+    keywords: ["beda", "samcan"],
+    reply: "SamcanOn = Pork Belly dengan kulit — cocok buat Sio Bak, Babi Hong, Samcan Goreng Crispy. SamcanOff = tanpa kulit — pas buat Samgyeopsal Korean BBQ, slice tipis. Dua-duanya enak Kak, tergantung masakan! 🥩",
+  },
+  {
+    keywords: ["samcan", "kulit"],
+    reply: "SamcanOn (dengan kulit) cocok buat masakan yang butuh kulit crispy: Sio Bak, Babi Hong, Samcan Goreng. SamcanOff (tanpa kulit) lebih pas buat Korean BBQ Samgyeopsal 🥩 Mau yang mana Kak?",
+  },
+
+  // ── CARA ORDER ──
+  {
+    keywords: ["cara", "order"],
+    reply: "Gampang Kak! Tinggal bilang aja mau produk apa dan berapa banyak, Pak Civo buatkan link checkout Shopify-nya langsung. Atau bisa order langsung di toko Shopify kita juga 🛒",
+  },
+  {
+    keywords: ["cara", "beli"],
+    reply: "Bilang aja mau beli apa Kak, Pak Civo siapkan link checkout-nya! Atau bisa langsung ke Shopify store kita. Gampang banget 🛒",
+  },
+
+  // ── DISKON ──
+  {
+    keywords: ["diskon"],
+    reply: "Ada diskon otomatis Kak! 🎉 Belanja Rp500rb ke atas diskon 3%, Rp750rb ke atas 4%, Rp1jt ke atas dapet 5%. Makin banyak makin hemat! 😊",
+  },
+  {
+    keywords: ["promo"],
+    reply: "Promo kita: diskon otomatis mulai belanja Rp500rb (3%), Rp750rb (4%), Rp1jt (5%) Kak! Plus frozen vacuum pack tahan 3-6 bulan, jadi bisa stok sekalian biar makin hemat 🎉",
+  },
+
+  // ── HALAL ──
+  {
+    keywords: ["halal"],
+    reply: "Produk CIVO MEAT adalah daging babi Kak, jadi non-halal ya. Kita spesialis daging babi premium sejak 2016 🥩",
+  },
+
+  // ── WHATSAPP ──
+  {
+    keywords: ["whatsapp"],
+    reply: "Hubungi admin CIVO MEAT di WhatsApp 0817-1717-9291 ya Kak! Untuk order bisa langsung lewat Pak Civo di sini juga 📱",
+  },
+  {
+    keywords: ["kontak"],
+    reply: "WhatsApp admin: 0817-1717-9291. Atau langsung chat sama Pak Civo di sini buat order dan tanya-tanya ya Kak! 📱",
+  },
+
+  // ── RESEP SINGKAT ──
+  {
+    keywords: ["resep", "sio", "bak"],
+    reply: "Sio Bak 101 Kak 👨‍🍳: SamcanOn (kulit wajib!) → siram kulit air panas → keringkan → tusuk-tusuk kulit pakai garpu → olesi cuka + garam di kulit → bumbu bawang putih+five spice di daging → oven 180°C 1 jam → broil 5 menit sampai kulit melepuh. Gampang dan hasilnya WOW! Mau Pak Civo carikan SamcanOn Kulit?",
+  },
+  {
+    keywords: ["resep", "babi", "kecap"],
+    reply: "Babi Kecap classic 👨‍🍳: Samcan potong dadu → goreng sebentar → tumis bawang putih+jahe → masukkan kecap manis+kecap asin+gula → masak pelan sampai empuk dan caramelized. Produknya udah ready Kak: Samcan Potong Dadu 500g. Mau dibuatkan checkout? 🥩",
+  },
+];
+
+// Match FAQ: semua keywords harus ada di pesan user (normalized)
+function matchFAQ(userMessage) {
+  const normalized = normalizeText(userMessage);
+  for (const faq of FAQ_TEMPLATES) {
+    if (faq.keywords.every(kw => normalized.includes(kw))) {
+      return faq.reply;
+    }
+  }
+  return null;
+}
+// ─────────────────────────────────────────────────────────────
+
 function buildSystemPrompt(productContext) {
   return `Kamu adalah PAK CIVO 👨‍🍳, AI sales assistant CIVO MEAT, penjual daging babi premium sejak 2016.
 
@@ -568,41 +728,39 @@ ATURAN SALES:
 - Untuk jumlah orang, bantu estimasi: BBQ 200-250g/orang, masakan berkuah 150-200g/orang.
 - Ajakan checkout harus natural, jangan memaksa.
 
-STRATEGI UPSELLING (WAJIB diterapkan di setiap jawaban yang menyebut produk):
-Tujuan: naikkan average order value secara natural dan helpful, BUKAN hard-sell.
-Pilih SATU teknik upselling paling relevan per jawaban. Jangan gabung banyak teknik sekaligus.
+STRATEGI SOFT-SELLING (pilih MAX 1 hook per jawaban, taruh di AKHIR, max 1 kalimat):
 
-1. CROSS-SELL PASANGAN MASAKAN (paling utama):
-   Saat customer sebut masakan/produk, sarankan pelengkap satu kalimat pendek:
-   - Samcan/PorkBelly → "Btw Kak, banyak yang sekalian ambil Sayur Asin Basah buat Bakut Sayur Asin 👌"
-   - PorkRibs/Paikut → "Cocok banget dibikin Bak Kut Teh Kak, kalau mau lengkap bisa tambah SamcanOn buat Sio Bak juga"
-   - Samgyeopsal Slice → "Biasanya yang BBQ Korean sekalian ambil PorkCollar Moksal Slice buat variasi di meja 🔥"
-   - PorkCollar Kapsim → "Kapsim ini favorit buat Char Siu Kak, mau sekalian Samgyeopsal buat grill juga?"
-   - PorkLoin/Karbonat → "PorkLoin pas banget buat Tonkatsu Kak, banyak yang combo sama Samcan buat variasi"
-   - Babi Giling → "Giling cocok buat Ngo Hiang atau Bubur Babi Kak, mau sekalian PorkRibs buat kuahnya?"
-   - Bacon → "Bacon kita best seller Kak, biasa yang ambil bacon sekalian PorkBelly buat weekend BBQ juga"
+HOOK YANG BISA DIPAKAI:
+- SOCIAL PROOF: "Customer BBQ biasanya sekalian ambil [produk pelengkap] buat variasi Kak"
+- LOSS AVERSION: "Sayang Kak totalnya tinggal dikit lagi 500rb — diskon 3% langsung aktif"
+- ANCHORING: frame harga per porsi/per orang supaya terasa murah vs makan di luar
+- RECIPROCITY: kasih 1 tip masak singkat → sambung ke produk tambahan
+- YES-LADDER: SETELAH customer confirm beli, tawarkan 1 add-on kecil
+- KONTRAS: bantu lihat beda 2 opsi tanpa merendahkan — "Lokal lebih lean, Import lebih marbling"
 
-2. VOLUME UPGRADE (saat customer pilih ukuran kecil):
-   - 500g → "Kak, yang 1kg lebih hemat per kg-nya lho 😉"
-   - Hanya suggest jika ada varian 1kg tersedia di DATA PRODUK SHOPIFY.
+CROSS-SELL MAP (referensi, jangan tampilkan ke customer):
+Samcan → Sayur Asin / PorkRibs | PorkRibs → SamcanOn | Samgyeopsal → Moksal Slice | Kapsim → Samgyeopsal | PorkLoin → Samcan | Giling → PorkRibs | Bacon → PorkBelly
 
-3. OCCASION BUNDLING (saat customer sebut acara/jumlah orang):
-   - BBQ party 4-6 orang → sarankan: "Buat [N] orang, Pak Civo suggest Samgyeopsal 1kg + Moksal Slice 500g + PorkRibs 1kg, cukup puas semua Kak 🎉"
-   - Masak keluarga → "Buat masakan rumahan seminggu, biasa customer ambil SamcanOn 1kg + Giling 500g + PorkRibs 1kg, hemat ongkir juga Kak"
+DISKON LADDER (sebut HANYA kalau total mendekati/melewati threshold):
+Rp500rb=3% | Rp750rb=4% | Rp1jt=5%
 
-4. DISKON VOLUME (ingatkan saat total mendekati threshold):
-   - "Oh ya Kak, belanja Rp500rb ke atas dapat diskon 3% otomatis lho 😊"
-   - Jangan sebut diskon kalau total masih jauh dari Rp500rb. Hanya sebut kalau sudah dekat atau lewat.
+ATURAN KERAS:
+- Jawab pertanyaan DULU, hook di akhir (1 kalimat).
+- Customer tolak → STOP. Jangan maksa/ulangi hook.
+- Jangan bohong soal stok atau buat fake urgency.
+- SamcanOn vs SamcanOff: jelaskan fakta, JANGAN rekomendasikan salah satu.
 
-5. REPEAT/RESTOCK HOOK (saat customer sudah checkout atau menunjukkan pernah beli):
-   - "Kak, produk frozen kita tahan 3-6 bulan di freezer, jadi bisa stok sekalian biar nggak bolak-balik order 👍"
-
-FORMAT UPSELLING:
-- Sisipkan di AKHIR jawaban utama, setelah menjawab pertanyaan customer.
-- Maksimal 1 kalimat upsell. Jangan panjang.
-- Tone: seperti teman yang kasih saran, BUKAN sales script.
-- Kalau customer sudah tolak/bilang cukup, JANGAN upsell lagi di turn berikutnya.
-- JANGAN upsell produk yang tidak ada di DATA PRODUK SHOPIFY saat ini.
+FAKTA CIVO MEAT (gunakan saat customer tanya):
+- 8 cabang: Tangerang, Serpong, JakBar, JakPus, Sunter, Bandung, Semarang, Surabaya.
+- Same-day cutoff 14:00, instant delivery cutoff 16:00 (Jakarta & Tangerang).
+- Pembayaran: transfer bank, e-wallet, QRIS via checkout Shopify.
+- Tidak ada minimum order.
+- Diskon otomatis: Rp500rb=3%, Rp750rb=4%, Rp1jt=5%.
+- Frozen vacuum tahan 3-6 bulan di freezer.
+- Komplain: foto + WA admin 0817-1717-9291, diproses 2×24 jam.
+- Produk non-halal (daging babi).
+- Estimasi porsi: BBQ 200-250g/orang, berkuah 150-200g/orang.
+- SamcanOn (kulit) → Sio Bak, Babi Hong, Crispy. SamcanOff (tanpa kulit) → Samgyeopsal Korean BBQ.
 
 DATA PRODUK SHOPIFY SAAT INI:
 ${productContext}`;
@@ -620,8 +778,8 @@ async function callGemini(systemPrompt, contents) {
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
           generationConfig: {
-            temperature: 0.35,
-            maxOutputTokens: 320,
+            temperature: 0.38,
+            maxOutputTokens: 300,
           },
         }),
       }, 9000);
@@ -725,6 +883,22 @@ module.exports = async function handler(req, res) {
     }
 
     const trimmedMessages = messages.slice(-MAX_HISTORY);
+
+    // ── FAQ INTERCEPTOR: jawaban instan tanpa LLM ──
+    const latestUserMsg = [...trimmedMessages].reverse().find(m => m.role === "user")?.content || "";
+    const faqReply = matchFAQ(latestUserMsg);
+    if (faqReply && trimmedMessages.length <= 2) {
+      // Hanya intercept di awal percakapan (1-2 pesan pertama).
+      // Kalau sudah deep conversation, tetap pakai LLM biar kontekstual.
+      return res.status(200).json({
+        role: "assistant",
+        reply: faqReply,
+        checkoutUrl: null,
+        cart: null,
+        faqHit: true,
+      });
+    }
+
     const searchQuery = extractSearchQuery(trimmedMessages);
 
     let products = [];
