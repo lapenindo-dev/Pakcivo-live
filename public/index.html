@@ -512,7 +512,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.6.0-voice-sync-no-read-ahead";
+const APP_VERSION = "v2.7.0-streaming-tts-fast-start";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -815,7 +815,7 @@ function setTalking(on){
   document.getElementById("stage").classList.toggle("talking",on);
 }
 
-// ── TTS: voice-sync mode, avoids showing the whole answer before audio is ready ──
+// ── TTS: streaming voice-sync mode, starts audio before full file is downloaded ──
 let currentAudio=null,_actx=null,currentTtsController=null,voiceSeq=0,activeTypingTimer=null;
 const ttsCache=new Map();
 const VOICE_MAX_CHARS=190;
@@ -887,6 +887,10 @@ function shouldSkipVoice(text){
   if(lower.includes("error:")) return true;
   if(lower.includes("maaf kak") && lower.includes("belum berhasil")) return true;
   return false;
+}
+function getStreamingTtsSrc(text){
+  const safeText=String(text||"").replace(/\s+/g," ").trim();
+  return "/api/tts-live?text="+encodeURIComponent(safeText)+"&cv="+encodeURIComponent(APP_VERSION)+"&_="+Date.now();
 }
 async function getTtsUrl(text, seq){
   const key=String(text||"").toLowerCase().trim();
@@ -981,10 +985,9 @@ async function speak(html, onDone, opts){
   if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,450); return; }
   const seq=++voiceSeq;
   try{
-    const url=await getTtsUrl(text,seq);
-    if(seq!==voiceSeq) return;
-    if(!url){ if(onDone) setTimeout(onDone,450); return; }
-    playAudio(new Audio(url),onDone,seq,opts);
+    const audio=new Audio(getStreamingTtsSrc(text));
+    audio.preload="auto";
+    playAudio(audio,onDone,seq,Object.assign({},opts,{fallbackText:text}));
   }catch(e){
     if(seq===voiceSeq){
       currentTtsController=null;
@@ -1006,14 +1009,8 @@ async function speakSynced(html, targetEl, onDone){
     targetEl.innerHTML='<span class="voice-wait">Pak Civo sedang menyiapkan suara</span>';
     try{targetEl.parentNode.scrollTop=targetEl.parentNode.scrollHeight;}catch(e){}
   }
-  const url=await getTtsUrl(voiceText,seq);
   if(seq!==voiceSeq) return;
-  if(!url){
-    if(targetEl) targetEl.innerHTML=html;
-    if(onDone) setTimeout(onDone,450);
-    return;
-  }
-  const audio=new Audio(url);
+  const audio=new Audio(getStreamingTtsSrc(voiceText));
   audio.preload="auto";
   let startedTyping=false;
   const startTyping=()=>{
@@ -1056,7 +1053,19 @@ function playAudio(audio, onDone, seq, opts){
   };
   audio.onplaying=()=>{if(seq===voiceSeq){setTalking(true); if(opts.onPlaying) opts.onPlaying();}};
   audio.onended=finish;
-  audio.onerror=finish;
+  audio.onerror=()=>{
+    if(seq!==voiceSeq) return finish();
+    if(opts.fallbackText && !opts._usedFallback){
+      opts._usedFallback=true;
+      getTtsUrl(opts.fallbackText,seq).then(url=>{
+        if(seq!==voiceSeq || !url) return finish();
+        const fallbackAudio=new Audio(url);
+        playAudio(fallbackAudio,onDone,seq,Object.assign({},opts,{fallbackText:""}));
+      }).catch(finish);
+      return;
+    }
+    finish();
+  };
   audio.onabort=finish;
   try{audio.load();}catch(e){}
   try{getCtx().resume().then(tryPlay).catch(tryPlay);}catch(e){tryPlay();}
