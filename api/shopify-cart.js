@@ -10,7 +10,7 @@ function normalizeShopDomain(value) {
   return String(value || "")
     .trim()
     .replace(/^https?:\/\//i, "")
-    .replace(/\/$/, "");
+    .replace(/\/+$/, "");
 }
 
 function getNumericVariantId(gid) {
@@ -21,12 +21,45 @@ function getNumericVariantId(gid) {
   return "";
 }
 
+function normalizeLines(body) {
+  let lines = body.lines;
+
+  if (!Array.isArray(lines) && body.variantId) {
+    lines = [{ merchandiseId: body.variantId, quantity: Number(body.quantity || 1) }];
+  }
+
+  if (!Array.isArray(lines)) return [];
+
+  const merged = new Map();
+
+  lines.forEach((line) => {
+    const merchandiseId = String(line?.merchandiseId || line?.variantId || "").trim();
+    const numericId = getNumericVariantId(merchandiseId);
+    const quantity = Math.max(1, Math.min(Number(line?.quantity || 1), 99));
+    if (!merchandiseId || !numericId || !Number.isFinite(quantity)) return;
+
+    const existing = merged.get(merchandiseId);
+    if (existing) {
+      existing.quantity = Math.min(99, existing.quantity + quantity);
+    } else {
+      merged.set(merchandiseId, { merchandiseId, quantity });
+    }
+  });
+
+  return Array.from(merged.values());
+}
+
+function getTotalQuantity(lines) {
+  return (lines || []).reduce((sum, line) => sum + Math.max(1, Number(line.quantity || 1)), 0);
+}
+
 function buildCartPermalink(shop, lines) {
   const domain = normalizeShopDomain(
     process.env.SHOPIFY_CART_DOMAIN ||
     process.env.SHOPIFY_PUBLIC_STORE_DOMAIN ||
     process.env.SHOPIFY_STORE_DOMAIN ||
-    shop
+    shop ||
+    "civo-meat.myshopify.com"
   );
 
   const items = lines
@@ -42,25 +75,6 @@ function buildCartPermalink(shop, lines) {
   return `https://${domain}/cart/${items}`;
 }
 
-function normalizeLines(body) {
-  let lines = body.lines;
-
-  if (!Array.isArray(lines) && body.variantId) {
-    lines = [{ merchandiseId: body.variantId, quantity: Number(body.quantity || 1) }];
-  }
-
-  if (!Array.isArray(lines)) return [];
-
-  return lines
-    .map((line) => {
-      const merchandiseId = line.merchandiseId || line.variantId;
-      const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
-      if (!merchandiseId || typeof merchandiseId !== "string") return null;
-      return { merchandiseId, quantity };
-    })
-    .filter(Boolean);
-}
-
 async function createCartWithStorefrontApi({ shop, token, version, lines }) {
   const mutation = `
     mutation CartCreate($input: CartInput!) {
@@ -68,11 +82,7 @@ async function createCartWithStorefrontApi({ shop, token, version, lines }) {
         cart {
           id
           checkoutUrl
-          cost {
-            subtotalAmount { amount currencyCode }
-            totalAmount { amount currencyCode }
-          }
-          lines(first: 20) {
+          lines(first: 50) {
             edges {
               node {
                 quantity
@@ -80,9 +90,7 @@ async function createCartWithStorefrontApi({ shop, token, version, lines }) {
                   ... on ProductVariant {
                     id
                     title
-                    availableForSale
                     product { title handle }
-                    price { amount currencyCode }
                   }
                 }
               }
@@ -116,44 +124,48 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const shop = normalizeShopDomain(process.env.SHOPIFY_STORE_DOMAIN);
-  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || process.env.SHOPIFY_STOREFRONT_TOKEN;
-  const version = process.env.SHOPIFY_API_VERSION || "2026-04";
-
   const body = parseRequestBody(req);
   const lines = normalizeLines(body);
+  const totalQuantity = getTotalQuantity(lines);
 
   if (!lines.length) {
     return res.status(400).json({ ok: false, error: "Missing cart lines" });
   }
 
-  const fallbackCheckoutUrl = buildCartPermalink(shop, lines);
+  const shop = normalizeShopDomain(process.env.SHOPIFY_STORE_DOMAIN || "civo-meat.myshopify.com");
+  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || process.env.SHOPIFY_STOREFRONT_TOKEN;
+  const version = process.env.SHOPIFY_API_VERSION || "2026-04";
+  const permalinkUrl = buildCartPermalink(shop, lines);
 
-  if (!shop) {
-    return res.status(500).json({
-      ok: false,
-      error: "Missing SHOPIFY_STORE_DOMAIN",
-      fallbackCheckoutUrl
+  // Preferred for this MVP: deterministic quantity handling and no Storefront scope dependency.
+  if (body.preferPermalink !== false && permalinkUrl) {
+    return res.status(200).json({
+      ok: true,
+      mode: "cart-permalink-preferred",
+      checkoutUrl: permalinkUrl,
+      cartUrl: permalinkUrl,
+      lines,
+      totalQuantity
     });
   }
 
-  // If Storefront token is missing, still return Shopify cart permalink so checkout can work.
   if (!token) {
-    if (fallbackCheckoutUrl) {
+    if (permalinkUrl) {
       return res.status(200).json({
         ok: true,
         mode: "cart-permalink-no-token",
-        checkoutUrl: fallbackCheckoutUrl,
-        cartUrl: fallbackCheckoutUrl,
+        checkoutUrl: permalinkUrl,
+        cartUrl: permalinkUrl,
+        lines,
+        totalQuantity,
         warning: "Missing SHOPIFY_STOREFRONT_ACCESS_TOKEN. Using Shopify cart permalink fallback."
       });
     }
-    return res.status(500).json({ ok: false, error: "Missing SHOPIFY_STOREFRONT_ACCESS_TOKEN" });
+    return res.status(500).json({ ok: false, error: "Missing SHOPIFY_STOREFRONT_ACCESS_TOKEN", lines, totalQuantity });
   }
 
   try {
     const { response, data } = await createCartWithStorefrontApi({ shop, token, version, lines });
-
     const payload = data?.data?.cartCreate;
     const userErrors = payload?.userErrors || [];
     const apiErrors = data?.errors || [];
@@ -164,18 +176,21 @@ module.exports = async function handler(req, res) {
         ok: true,
         mode: "storefront-cart",
         cart: payload.cart,
-        checkoutUrl
+        checkoutUrl,
+        fallbackCheckoutUrl: permalinkUrl,
+        lines,
+        totalQuantity
       });
     }
 
-    // Hard fallback: even when cartCreate fails because of Storefront permission/version/scope,
-    // Shopify cart permalink can still add the variant to the Online Store cart.
-    if (fallbackCheckoutUrl) {
+    if (permalinkUrl) {
       return res.status(200).json({
         ok: true,
         mode: "cart-permalink-fallback",
-        checkoutUrl: fallbackCheckoutUrl,
-        cartUrl: fallbackCheckoutUrl,
+        checkoutUrl: permalinkUrl,
+        cartUrl: permalinkUrl,
+        lines,
+        totalQuantity,
         storefrontError: {
           status: response.status,
           errors: apiErrors,
@@ -191,19 +206,23 @@ module.exports = async function handler(req, res) {
       status: response.status,
       errors: apiErrors,
       userErrors,
+      lines,
+      totalQuantity,
       raw: data
     });
   } catch (error) {
-    if (fallbackCheckoutUrl) {
+    if (permalinkUrl) {
       return res.status(200).json({
         ok: true,
         mode: "cart-permalink-fallback-exception",
-        checkoutUrl: fallbackCheckoutUrl,
-        cartUrl: fallbackCheckoutUrl,
+        checkoutUrl: permalinkUrl,
+        cartUrl: permalinkUrl,
+        lines,
+        totalQuantity,
         warning: error.message
       });
     }
 
-    return res.status(500).json({ ok: false, error: error.message });
+    return res.status(500).json({ ok: false, error: error.message, lines, totalQuantity });
   }
 };
