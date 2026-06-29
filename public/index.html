@@ -487,7 +487,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.5.1-fast-voice-responsive-chat-audited";
+const APP_VERSION = "v2.5.3-auto-greeting-after-lead-submit";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -621,17 +621,26 @@ function setLeadReady(lead, opts){
   hideLeadGate();
 
   const firstName=currentLead.name.split(/\s+/)[0] || "Kak";
-  messages=[{role:"assistant",content:`Halo ${firstName}! Saya Pak Civo, siap bantu pilihkan produk CIVO MEAT terbaik.`}];
+  const greeting=`Halo ${firstName}! Saya Pak Civo. Mau cari samcan, ribs, bacon, Korean BBQ, atau daging untuk masakan tertentu?`;
+  messages=[{role:"assistant",content:greeting}];
 
   if(!opts || !opts.silent){
-    const rb=document.getElementById("pcReply");
-    const pc=document.getElementById("pcText");
-    if(rb && pc){
-      pc.innerHTML=`Halo <strong>${escapeHtml(firstName)}</strong>! Mau cari samcan, ribs, bacon, kapsim, atau daging giling hari ini?`;
-      rb.style.display="block";
-      setTimeout(()=>{ rb.style.display="none"; },3600);
-    }
+    showPakCivoOpeningGreeting(greeting);
   }
+}
+
+function showPakCivoOpeningGreeting(greeting){
+  stopVoice();
+  const rb=document.getElementById("pcReply");
+  const pc=document.getElementById("pcText");
+  if(rb && pc){
+    pc.innerHTML=escapeHtml(greeting);
+    rb.style.display="block";
+    pc.parentNode.scrollTop=pc.parentNode.scrollHeight;
+  }
+  setTimeout(()=>{
+    try { speak(greeting, function(){}); } catch(e) {}
+  }, 180);
 }
 
 function clearLeadData(){
