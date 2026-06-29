@@ -347,6 +347,31 @@ body.lead-locked .product-strip {
 }
 body.lead-ready .lead-reset-floating { display: inline-flex; }
 
+
+.voice-wait {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:rgba(242,237,228,.82);
+  font-weight:800;
+}
+.voice-wait::after {
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background:var(--copper);
+  box-shadow:12px 0 0 rgba(200,133,74,.55),24px 0 0 rgba(200,133,74,.25);
+  animation:voicePulse 1s infinite ease-in-out;
+}
+.voice-live-text {
+  white-space:normal;
+}
+@keyframes voicePulse {
+  0%,100% { opacity:.45; transform:translateY(0); }
+  50% { opacity:1; transform:translateY(-1px); }
+}
+
 </style>
 </head>
 <body class="lead-locked">
@@ -487,7 +512,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.5.4-voice-not-cut-audited";
+const APP_VERSION = "v2.6.0-voice-sync-no-read-ahead";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -790,13 +815,18 @@ function setTalking(on){
   document.getElementById("stage").classList.toggle("talking",on);
 }
 
-// ── TTS: stable voice playback, no mid-sentence clipping ──
-let currentAudio=null,_actx=null,currentTtsController=null,voiceSeq=0;
+// ── TTS: voice-sync mode, avoids showing the whole answer before audio is ready ──
+let currentAudio=null,_actx=null,currentTtsController=null,voiceSeq=0,activeTypingTimer=null;
 const ttsCache=new Map();
-const VOICE_MAX_CHARS=260;
+const VOICE_MAX_CHARS=190;
+const VOICE_ACK_TEXT="Siap Kak, Pak Civo cek dulu ya.";
 function getCtx(){if(!_actx||_actx.state==="closed")_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}
+function stopTyping(){
+  if(activeTypingTimer){clearInterval(activeTypingTimer);activeTypingTimer=null;}
+}
 function stopVoice(){
   voiceSeq++;
+  stopTyping();
   try{ if(currentTtsController) currentTtsController.abort(); }catch(e){}
   currentTtsController=null;
   if(currentAudio){
@@ -810,7 +840,6 @@ function stopVoice(){
   setTalking(false);
 }
 function typewriterEffect(el, html){
-  // Kept for compatibility; current UX renders text instantly for better responsiveness.
   el.innerHTML=html;
 }
 function extractPlainTextFromHtml(html){
@@ -833,12 +862,12 @@ function shortenForVoice(text){
     .replace(/https?:\/\/\S+/gi," ")
     .replace(/Checkout Sekarang/gi," ")
     .replace(/Total item:\s*\d+/gi," ")
-    .replace(/Error:\s*[^.?!]+/gi," ")
+    .replace(/\bError:\s*[^.?!]+/gi," ")
     .replace(/\s+/g," ")
     .trim();
   if(!cleaned) return "";
 
-  // Pick complete sentences, not a raw character slice. The old 150-char slice made Pak Civo sound cut off.
+  // Voice should be a short spoken summary. The full text is shown after/while speech is playing.
   const sentences=(cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[cleaned])
     .map(s=>s.trim())
     .filter(Boolean);
@@ -847,7 +876,7 @@ function shortenForVoice(text){
     const next=(picked?picked+" ":"")+sentence;
     if(next.length>VOICE_MAX_CHARS) break;
     picked=next;
-    if(picked.length>=95) break;
+    if(picked.length>=85) break;
   }
   if(!picked) picked=cutAtWordBoundary(cleaned,VOICE_MAX_CHARS);
   return cutAtWordBoundary(picked,VOICE_MAX_CHARS);
@@ -859,49 +888,149 @@ function shouldSkipVoice(text){
   if(lower.includes("maaf kak") && lower.includes("belum berhasil")) return true;
   return false;
 }
-async function speak(html, onDone){
-  const text=shortenForVoice(extractPlainTextFromHtml(html));
-  if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,650); return; }
-  const key=text.toLowerCase();
-  const seq=++voiceSeq;
+async function getTtsUrl(text, seq){
+  const key=String(text||"").toLowerCase().trim();
+  if(!key) return "";
+  if(ttsCache.has(key)) return ttsCache.get(key);
+
+  if(currentTtsController) currentTtsController.abort();
+  currentTtsController=new AbortController();
+  const timeout=setTimeout(()=>{try{currentTtsController.abort();}catch(e){}},9500);
   try{
-    if(ttsCache.has(key)){
-      playAudio(new Audio(ttsCache.get(key)),onDone,seq);
-      return;
-    }
-    if(currentTtsController) currentTtsController.abort();
-    currentTtsController=new AbortController();
-    const timeout=setTimeout(()=>{try{currentTtsController.abort();}catch(e){}},12000);
     const res=await fetch("/api/tts",{
       method:"POST",
       headers:{"Content-Type":"application/json","Accept":"audio/mpeg"},
-      body:JSON.stringify({text,mode:"stable",clientVersion:APP_VERSION}),
+      body:JSON.stringify({text,mode:"sync",clientVersion:APP_VERSION}),
       signal:currentTtsController.signal
     });
     clearTimeout(timeout);
     if(seq===voiceSeq) currentTtsController=null;
-    if(seq!==voiceSeq) return;
-    if(!res.ok){ if(onDone) setTimeout(onDone,650); return; }
+    if(seq!==voiceSeq) return "";
+    if(!res.ok) return "";
     const blob=await res.blob();
-    if(seq!==voiceSeq) return;
-    if(!blob.size){ if(onDone) setTimeout(onDone,650); return; }
+    if(seq!==voiceSeq || !blob.size) return "";
     const url=URL.createObjectURL(blob);
-    if(ttsCache.size>20){
+    if(ttsCache.size>24){
       const firstKey=ttsCache.keys().next().value;
       try{URL.revokeObjectURL(ttsCache.get(firstKey));}catch(e){}
       ttsCache.delete(firstKey);
     }
     ttsCache.set(key,url);
-    playAudio(new Audio(url),onDone,seq);
+    return url;
+  }catch(e){
+    if(seq===voiceSeq) currentTtsController=null;
+    return "";
+  }finally{
+    clearTimeout(timeout);
+  }
+}
+async function preloadVoiceText(text){
+  const cleaned=shortenForVoice(text);
+  if(!cleaned || shouldSkipVoice(cleaned)) return;
+  const key=cleaned.toLowerCase().trim();
+  if(ttsCache.has(key)) return;
+  const seq=voiceSeq;
+  try{
+    const res=await fetch("/api/tts",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"audio/mpeg"},
+      body:JSON.stringify({text:cleaned,mode:"preload",clientVersion:APP_VERSION})
+    });
+    if(!res.ok || ttsCache.has(key)) return;
+    const blob=await res.blob();
+    if(!blob.size) return;
+    ttsCache.set(key,URL.createObjectURL(blob));
+  }catch(e){}
+}
+function playQuickAckIfReady(){
+  const key=VOICE_ACK_TEXT.toLowerCase();
+  if(ttsCache.has(key)){
+    speak(VOICE_ACK_TEXT, function(){}, {allowInterrupt:true});
+  }
+}
+function estimateTypeDurationMs(audio, text){
+  const len=Array.from(String(text||"")).length || 1;
+  if(Number.isFinite(audio.duration) && audio.duration>0.4){
+    return Math.max(900, Math.min(9000, audio.duration*1000));
+  }
+  return Math.max(1100, Math.min(7000, len*38));
+}
+function typeSyncedText(el, text, finalHtml, durationMs, seq){
+  if(!el) return;
+  stopTyping();
+  const chars=Array.from(String(text||"").replace(/\s+/g," ").trim());
+  if(!chars.length){el.innerHTML=finalHtml;return;}
+  el.innerHTML='<span class="voice-live-text"></span>';
+  const target=el.querySelector(".voice-live-text") || el;
+  const step=Math.max(14, Math.min(55, durationMs / chars.length));
+  let i=0;
+  activeTypingTimer=setInterval(()=>{
+    if(seq!==voiceSeq){stopTyping();return;}
+    i++;
+    target.textContent=chars.slice(0,i).join("");
+    try{el.parentNode.scrollTop=el.parentNode.scrollHeight;}catch(e){}
+    if(i>=chars.length){
+      stopTyping();
+      setTimeout(()=>{ if(seq===voiceSeq) el.innerHTML=finalHtml; },250);
+    }
+  },step);
+}
+async function speak(html, onDone, opts){
+  opts=opts||{};
+  const text=shortenForVoice(extractPlainTextFromHtml(html));
+  if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,450); return; }
+  const seq=++voiceSeq;
+  try{
+    const url=await getTtsUrl(text,seq);
+    if(seq!==voiceSeq) return;
+    if(!url){ if(onDone) setTimeout(onDone,450); return; }
+    playAudio(new Audio(url),onDone,seq,opts);
   }catch(e){
     if(seq===voiceSeq){
       currentTtsController=null;
       setTalking(false);
-      if(onDone) setTimeout(onDone,650);
+      if(onDone) setTimeout(onDone,450);
     }
   }
 }
-function playAudio(audio, onDone, seq){
+async function speakSynced(html, targetEl, onDone){
+  const fullText=extractPlainTextFromHtml(html);
+  const voiceText=shortenForVoice(fullText);
+  if(!voiceText || shouldSkipVoice(voiceText)){
+    if(targetEl) targetEl.innerHTML=html;
+    if(onDone) setTimeout(onDone,450);
+    return;
+  }
+  const seq=++voiceSeq;
+  if(targetEl){
+    targetEl.innerHTML='<span class="voice-wait">Pak Civo sedang menyiapkan suara</span>';
+    try{targetEl.parentNode.scrollTop=targetEl.parentNode.scrollHeight;}catch(e){}
+  }
+  const url=await getTtsUrl(voiceText,seq);
+  if(seq!==voiceSeq) return;
+  if(!url){
+    if(targetEl) targetEl.innerHTML=html;
+    if(onDone) setTimeout(onDone,450);
+    return;
+  }
+  const audio=new Audio(url);
+  audio.preload="auto";
+  let startedTyping=false;
+  const startTyping=()=>{
+    if(startedTyping || seq!==voiceSeq) return;
+    startedTyping=true;
+    const duration=estimateTypeDurationMs(audio, fullText);
+    typeSyncedText(targetEl, fullText, html, duration, seq);
+  };
+  playAudio(audio,()=>{
+    if(targetEl && seq===voiceSeq) targetEl.innerHTML=html;
+    if(onDone) onDone();
+  },seq,{onPlaying:startTyping});
+  // Fallback: if browser doesn't fire onplaying fast enough, begin typing once play attempt starts.
+  setTimeout(()=>{ if(!startedTyping && seq===voiceSeq) startTyping(); },550);
+}
+function playAudio(audio, onDone, seq, opts){
+  opts=opts||{};
   if(!audio){if(onDone)onDone();return;}
   if(seq!==voiceSeq) return;
   if(currentAudio){
@@ -922,10 +1051,10 @@ function playAudio(audio, onDone, seq){
   const tryPlay=()=>{
     if(seq!==voiceSeq) return;
     audio.play()
-      .then(()=>{if(seq===voiceSeq)setTalking(true);})
+      .then(()=>{if(seq===voiceSeq){setTalking(true); if(opts.onPlaying) opts.onPlaying();}})
       .catch(e=>{if(seq===voiceSeq){setTalking(false);if(onDone)onDone();}});
   };
-  audio.onplaying=()=>{if(seq===voiceSeq)setTalking(true);};
+  audio.onplaying=()=>{if(seq===voiceSeq){setTalking(true); if(opts.onPlaying) opts.onPlaying();}};
   audio.onended=finish;
   audio.onerror=finish;
   audio.onabort=finish;
@@ -935,6 +1064,7 @@ function playAudio(audio, onDone, seq){
 ["touchstart","click"].forEach(ev=>document.addEventListener(ev,()=>{
   try{getCtx().resume();}catch(e){}
   try{document.getElementById("hostVideo").play();}catch(e){}
+  try{preloadVoiceText(VOICE_ACK_TEXT);}catch(e){}
 },{once:true}));
 
 // ── FAKE BUBBLES ──
@@ -1012,6 +1142,7 @@ async function send(){
   const rb=document.getElementById("pcReply");
   document.getElementById("pcText").innerHTML='<div class="tydots"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
   rb.style.display="block";
+  try{playQuickAckIfReady();}catch(e){}
   messages.push({role:"user",content:text});
   isLoading=true;
 
@@ -1026,7 +1157,8 @@ async function send(){
     messages.push({role:"assistant",content:reply});
     const html=fmt(reply, checkoutUrl);
     const pcTextEl=document.getElementById("pcText");
-    pcTextEl.innerHTML=html;
+    const canVoiceSync = !shouldSkipVoice(shortenForVoice(extractPlainTextFromHtml(html)));
+    pcTextEl.innerHTML = canVoiceSync ? '<span class="voice-wait">Pak Civo menyiapkan jawaban suara</span>' : html;
     pcTextEl.parentNode.scrollTop=pcTextEl.parentNode.scrollHeight;
 
     const t=reply.toLowerCase();
@@ -1065,7 +1197,7 @@ async function send(){
       }
     }
 
-    speak(html, ()=>{
+    speakSynced(html, pcTextEl, ()=>{
       // Keep checkout button visible; auto-hide only regular replies.
       if(!hasCheckoutButton){
         setTimeout(()=>{rb.style.display="none";},2500);
@@ -1350,6 +1482,31 @@ loadCartState();
   });
 })();
 </script>
-<style>@keyframes ptrSpin{to{transform:rotate(360deg);}}</style>
+<style>@keyframes ptrSpin{to{transform:rotate(360deg);}}
+.voice-wait {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:rgba(242,237,228,.82);
+  font-weight:800;
+}
+.voice-wait::after {
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background:var(--copper);
+  box-shadow:12px 0 0 rgba(200,133,74,.55),24px 0 0 rgba(200,133,74,.25);
+  animation:voicePulse 1s infinite ease-in-out;
+}
+.voice-live-text {
+  white-space:normal;
+}
+@keyframes voicePulse {
+  0%,100% { opacity:.45; transform:translateY(0); }
+  50% { opacity:1; transform:translateY(-1px); }
+}
+
+</style>
 </body>
 </html>
