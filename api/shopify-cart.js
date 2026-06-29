@@ -1,220 +1,209 @@
-module.exports = async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({
-        ok: false,
-        error: "Method not allowed"
-      });
-    }
+function parseRequestBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    try { return JSON.parse(req.body); } catch (_) { return {}; }
+  }
+  return req.body;
+}
 
-    const rawShop = process.env.SHOPIFY_STORE_DOMAIN || "";
-    const shop = rawShop
-      .replace(/^https?:\/\//i, "")
-      .replace(/\/$/, "")
-      .trim();
-    const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
-    const version = process.env.SHOPIFY_API_VERSION || "2026-04";
+function normalizeShopDomain(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/$/, "");
+}
 
-    if (!shop || !token) {
-      return res.status(500).json({
-        ok: false,
-        error: "Missing Shopify env variables",
-        hasShop: !!shop,
-        hasToken: !!token
-      });
-    }
+function getNumericVariantId(gid) {
+  const value = String(gid || "");
+  const match = value.match(/ProductVariant\/(\d+)/);
+  if (match && match[1]) return match[1];
+  if (/^\d+$/.test(value)) return value;
+  return "";
+}
 
-    let body = req.body || {};
+function buildCartPermalink(shop, lines) {
+  const domain = normalizeShopDomain(
+    process.env.SHOPIFY_CART_DOMAIN ||
+    process.env.SHOPIFY_PUBLIC_STORE_DOMAIN ||
+    process.env.SHOPIFY_STORE_DOMAIN ||
+    shop
+  );
 
-    // Vercel normally parses JSON, but this protects us if req.body arrives as a string/buffer.
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body || "{}");
-      } catch (e) {
-        return res.status(400).json({
-          ok: false,
-          error: "Invalid JSON body"
-        });
-      }
-    }
+  const items = lines
+    .map((line) => {
+      const numericId = getNumericVariantId(line.merchandiseId || line.variantId);
+      const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
+      return numericId ? `${numericId}:${quantity}` : "";
+    })
+    .filter(Boolean)
+    .join(",");
 
-    if (Buffer.isBuffer(body)) {
-      try {
-        body = JSON.parse(body.toString("utf8") || "{}");
-      } catch (e) {
-        return res.status(400).json({
-          ok: false,
-          error: "Invalid JSON body buffer"
-        });
-      }
-    }
+  if (!domain || !items) return "";
+  return `https://${domain}/cart/${items}`;
+}
 
-    let lines = body.lines;
+function normalizeLines(body) {
+  let lines = body.lines;
 
-    // Backward compatibility: allow { variantId, merchandiseId, quantity }
-    if (!Array.isArray(lines) && (body.variantId || body.merchandiseId)) {
-      lines = [
-        {
-          merchandiseId: body.merchandiseId || body.variantId,
-          quantity: Number(body.quantity || 1)
-        }
-      ];
-    }
+  if (!Array.isArray(lines) && body.variantId) {
+    lines = [{ merchandiseId: body.variantId, quantity: Number(body.quantity || 1) }];
+  }
 
-    if (!Array.isArray(lines) || lines.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Missing cart lines",
-        receivedKeys: Object.keys(body || {})
-      });
-    }
+  if (!Array.isArray(lines)) return [];
 
-    const cleanLines = lines
-      .map((line) => {
-        const merchandiseId = line.merchandiseId || line.variantId;
-        const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
+  return lines
+    .map((line) => {
+      const merchandiseId = line.merchandiseId || line.variantId;
+      const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
+      if (!merchandiseId || typeof merchandiseId !== "string") return null;
+      return { merchandiseId, quantity };
+    })
+    .filter(Boolean);
+}
 
-        if (!merchandiseId || typeof merchandiseId !== "string") {
-          return null;
-        }
-
-        return {
-          merchandiseId,
-          quantity
-        };
-      })
-      .filter(Boolean);
-
-    if (cleanLines.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "No valid Shopify variant IDs provided"
-      });
-    }
-
-    const mutation = `
-      mutation CartCreate($input: CartInput!) {
-        cartCreate(input: $input) {
-          cart {
-            id
-            checkoutUrl
-            cost {
-              subtotalAmount {
-                amount
-                currencyCode
-              }
-              totalAmount {
-                amount
-                currencyCode
-              }
-            }
-            lines(first: 20) {
-              edges {
-                node {
-                  quantity
-                  merchandise {
-                    ... on ProductVariant {
-                      id
-                      title
-                      availableForSale
-                      product {
-                        title
-                        handle
-                      }
-                      price {
-                        amount
-                        currencyCode
-                      }
-                    }
+async function createCartWithStorefrontApi({ shop, token, version, lines }) {
+  const mutation = `
+    mutation CartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
+          id
+          checkoutUrl
+          cost {
+            subtotalAmount { amount currencyCode }
+            totalAmount { amount currencyCode }
+          }
+          lines(first: 20) {
+            edges {
+              node {
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    availableForSale
+                    product { title handle }
+                    price { amount currencyCode }
                   }
                 }
               }
             }
           }
-          userErrors {
-            field
-            message
-          }
         }
+        userErrors { field message }
       }
-    `;
-
-    const shopifyRes = await fetch(`https://${shop}/api/${version}/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": token
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          input: {
-            lines: cleanLines
-          }
-        }
-      })
-    });
-
-    const rawText = await shopifyRes.text();
-    let data = {};
-    try {
-      data = rawText ? JSON.parse(rawText) : {};
-    } catch (e) {
-      return res.status(502).json({
-        ok: false,
-        error: "Shopify returned non-JSON response",
-        status: shopifyRes.status,
-        body: rawText.slice(0, 500)
-      });
     }
+  `;
 
-    if (!shopifyRes.ok || data.errors) {
-      return res.status(shopifyRes.status || 500).json({
-        ok: false,
-        status: shopifyRes.status,
-        errors: data.errors || data,
-        shop,
-        apiVersion: version
-      });
-    }
+  const response = await fetch(`https://${shop}/api/${version}/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": token
+    },
+    body: JSON.stringify({ query: mutation, variables: { input: { lines } } })
+  });
 
-    const payload = data?.data?.cartCreate;
+  let data;
+  const text = await response.text();
+  try { data = text ? JSON.parse(text) : {}; }
+  catch (_) { data = { nonJsonResponse: text.slice(0, 500) }; }
 
-    if (!payload) {
-      return res.status(500).json({
-        ok: false,
-        error: "Invalid Shopify cartCreate response",
-        data
-      });
-    }
+  return { response, data };
+}
 
-    if (payload.userErrors && payload.userErrors.length > 0) {
-      return res.status(400).json({
-        ok: false,
-        userErrors: payload.userErrors,
-        errors: payload.userErrors
-      });
-    }
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
 
-    const checkoutUrl = payload.cart?.checkoutUrl || null;
+  const shop = normalizeShopDomain(process.env.SHOPIFY_STORE_DOMAIN);
+  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || process.env.SHOPIFY_STOREFRONT_TOKEN;
+  const version = process.env.SHOPIFY_API_VERSION || "2026-04";
 
-    if (!checkoutUrl) {
-      return res.status(500).json({
-        ok: false,
-        error: "Shopify cart created but checkoutUrl is missing",
-        cart: payload.cart
-      });
-    }
+  const body = parseRequestBody(req);
+  const lines = normalizeLines(body);
 
-    return res.status(200).json({
-      ok: true,
-      cart: payload.cart,
-      checkoutUrl
-    });
-  } catch (error) {
+  if (!lines.length) {
+    return res.status(400).json({ ok: false, error: "Missing cart lines" });
+  }
+
+  const fallbackCheckoutUrl = buildCartPermalink(shop, lines);
+
+  if (!shop) {
     return res.status(500).json({
       ok: false,
-      error: error.message || "Unknown server error"
+      error: "Missing SHOPIFY_STORE_DOMAIN",
+      fallbackCheckoutUrl
     });
+  }
+
+  // If Storefront token is missing, still return Shopify cart permalink so checkout can work.
+  if (!token) {
+    if (fallbackCheckoutUrl) {
+      return res.status(200).json({
+        ok: true,
+        mode: "cart-permalink-no-token",
+        checkoutUrl: fallbackCheckoutUrl,
+        cartUrl: fallbackCheckoutUrl,
+        warning: "Missing SHOPIFY_STOREFRONT_ACCESS_TOKEN. Using Shopify cart permalink fallback."
+      });
+    }
+    return res.status(500).json({ ok: false, error: "Missing SHOPIFY_STOREFRONT_ACCESS_TOKEN" });
+  }
+
+  try {
+    const { response, data } = await createCartWithStorefrontApi({ shop, token, version, lines });
+
+    const payload = data?.data?.cartCreate;
+    const userErrors = payload?.userErrors || [];
+    const apiErrors = data?.errors || [];
+    const checkoutUrl = payload?.cart?.checkoutUrl || "";
+
+    if (response.ok && checkoutUrl && userErrors.length === 0 && apiErrors.length === 0) {
+      return res.status(200).json({
+        ok: true,
+        mode: "storefront-cart",
+        cart: payload.cart,
+        checkoutUrl
+      });
+    }
+
+    // Hard fallback: even when cartCreate fails because of Storefront permission/version/scope,
+    // Shopify cart permalink can still add the variant to the Online Store cart.
+    if (fallbackCheckoutUrl) {
+      return res.status(200).json({
+        ok: true,
+        mode: "cart-permalink-fallback",
+        checkoutUrl: fallbackCheckoutUrl,
+        cartUrl: fallbackCheckoutUrl,
+        storefrontError: {
+          status: response.status,
+          errors: apiErrors,
+          userErrors,
+          raw: data?.nonJsonResponse ? data.nonJsonResponse : undefined
+        }
+      });
+    }
+
+    return res.status(response.status || 500).json({
+      ok: false,
+      error: "Shopify cartCreate failed and fallback URL could not be built",
+      status: response.status,
+      errors: apiErrors,
+      userErrors,
+      raw: data
+    });
+  } catch (error) {
+    if (fallbackCheckoutUrl) {
+      return res.status(200).json({
+        ok: true,
+        mode: "cart-permalink-fallback-exception",
+        checkoutUrl: fallbackCheckoutUrl,
+        cartUrl: fallbackCheckoutUrl,
+        warning: error.message
+      });
+    }
+
+    return res.status(500).json({ ok: false, error: error.message });
   }
 };
