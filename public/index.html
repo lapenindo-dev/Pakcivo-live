@@ -512,7 +512,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.7.0-streaming-tts-fast-start";
+const APP_VERSION = "v2.6.0-voice-sync-no-read-ahead";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -815,7 +815,7 @@ function setTalking(on){
   document.getElementById("stage").classList.toggle("talking",on);
 }
 
-// ── TTS: streaming voice-sync mode, starts audio before full file is downloaded ──
+// ── TTS: voice-sync mode, avoids showing the whole answer before audio is ready ──
 let currentAudio=null,_actx=null,currentTtsController=null,voiceSeq=0,activeTypingTimer=null;
 const ttsCache=new Map();
 const VOICE_MAX_CHARS=190;
@@ -888,45 +888,23 @@ function shouldSkipVoice(text){
   if(lower.includes("maaf kak") && lower.includes("belum berhasil")) return true;
   return false;
 }
-function getStreamingTtsSrc(text){
-  const safeText=String(text||"").replace(/\s+/g," ").trim();
-  return "/api/tts-live?text="+encodeURIComponent(safeText)+"&cv="+encodeURIComponent(APP_VERSION)+"&_="+Date.now();
-}
 async function getTtsUrl(text, seq){
   const key=String(text||"").toLowerCase().trim();
   if(!key) return "";
   if(ttsCache.has(key)) return ttsCache.get(key);
 
-  if(currentTtsController) currentTtsController.abort();
-  currentTtsController=new AbortController();
-  const timeout=setTimeout(()=>{try{currentTtsController.abort();}catch(e){}},9500);
-  try{
-    const res=await fetch("/api/tts",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","Accept":"audio/mpeg"},
-      body:JSON.stringify({text,mode:"sync",clientVersion:APP_VERSION}),
-      signal:currentTtsController.signal
-    });
-    clearTimeout(timeout);
-    if(seq===voiceSeq) currentTtsController=null;
-    if(seq!==voiceSeq) return "";
-    if(!res.ok) return "";
-    const blob=await res.blob();
-    if(seq!==voiceSeq || !blob.size) return "";
-    const url=URL.createObjectURL(blob);
-    if(ttsCache.size>24){
-      const firstKey=ttsCache.keys().next().value;
-      try{URL.revokeObjectURL(ttsCache.get(firstKey));}catch(e){}
-      ttsCache.delete(firstKey);
-    }
-    ttsCache.set(key,url);
-    return url;
-  }catch(e){
-    if(seq===voiceSeq) currentTtsController=null;
-    return "";
-  }finally{
-    clearTimeout(timeout);
-  }
+  // FIX DELAY: dulu pakai fetch()+await res.blob() yang BARU resolve setelah
+  // SELURUH file audio selesai didownload — jadi audio baru bisa mulai diputar
+  // setelah generate + transfer 100% kelar. Sekarang langsung kasih URL GET
+  // ke /api/tts (yang sekarang men-stream/pipe dari OpenAI), dan biarkan
+  // elemen <audio> browser men-streaming-play secara progresif begitu byte
+  // pertama datang — tidak perlu fetch/blob sama sekali.
+  if(seq===voiceSeq) currentTtsController=null;
+  const url="/api/tts?mode=sync&clientVersion="+encodeURIComponent(APP_VERSION)+"&text="+encodeURIComponent(text);
+  // Tidak di-cache sebagai object URL karena ini bukan blob; biarkan request
+  // berikutnya ke teks yang sama kena cache HTTP (Cache-Control) atau cache
+  // server-side (X-TTS-Cache HIT) di sisi /api/tts.
+  return url;
 }
 async function preloadVoiceText(text){
   const cleaned=shortenForVoice(text);
@@ -985,9 +963,10 @@ async function speak(html, onDone, opts){
   if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,450); return; }
   const seq=++voiceSeq;
   try{
-    const audio=new Audio(getStreamingTtsSrc(text));
-    audio.preload="auto";
-    playAudio(audio,onDone,seq,Object.assign({},opts,{fallbackText:text}));
+    const url=await getTtsUrl(text,seq);
+    if(seq!==voiceSeq) return;
+    if(!url){ if(onDone) setTimeout(onDone,450); return; }
+    playAudio(new Audio(url),onDone,seq,opts);
   }catch(e){
     if(seq===voiceSeq){
       currentTtsController=null;
@@ -1009,8 +988,14 @@ async function speakSynced(html, targetEl, onDone){
     targetEl.innerHTML='<span class="voice-wait">Pak Civo sedang menyiapkan suara</span>';
     try{targetEl.parentNode.scrollTop=targetEl.parentNode.scrollHeight;}catch(e){}
   }
+  const url=await getTtsUrl(voiceText,seq);
   if(seq!==voiceSeq) return;
-  const audio=new Audio(getStreamingTtsSrc(voiceText));
+  if(!url){
+    if(targetEl) targetEl.innerHTML=html;
+    if(onDone) setTimeout(onDone,450);
+    return;
+  }
+  const audio=new Audio(url);
   audio.preload="auto";
   let startedTyping=false;
   const startTyping=()=>{
@@ -1053,19 +1038,7 @@ function playAudio(audio, onDone, seq, opts){
   };
   audio.onplaying=()=>{if(seq===voiceSeq){setTalking(true); if(opts.onPlaying) opts.onPlaying();}};
   audio.onended=finish;
-  audio.onerror=()=>{
-    if(seq!==voiceSeq) return finish();
-    if(opts.fallbackText && !opts._usedFallback){
-      opts._usedFallback=true;
-      getTtsUrl(opts.fallbackText,seq).then(url=>{
-        if(seq!==voiceSeq || !url) return finish();
-        const fallbackAudio=new Audio(url);
-        playAudio(fallbackAudio,onDone,seq,Object.assign({},opts,{fallbackText:""}));
-      }).catch(finish);
-      return;
-    }
-    finish();
-  };
+  audio.onerror=finish;
   audio.onabort=finish;
   try{audio.load();}catch(e){}
   try{getCtx().resume().then(tryPlay).catch(tryPlay);}catch(e){tryPlay();}
