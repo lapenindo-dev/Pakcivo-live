@@ -487,7 +487,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.3.5-cart-quantity-increment";
+const APP_VERSION = "v2.4.0-stable-cart-quantity-checkout";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -576,6 +576,7 @@ let messages=[{role:"assistant",content:"Halo Kak! Saya Pak Civo siap bantu pili
 let likeVal=2347,chipsVisible=false;
 
 const LEAD_STORAGE_KEY = "pakcivoLeadV1";
+const CART_STORAGE_KEY = "pakcivoCartV2";
 let currentLead = null;
 
 function safeJSONParse(value){
@@ -972,8 +973,19 @@ async function send(){
     }
     if(cm){
       const pidx=Math.min(parseInt(cm[1].replace("p",""))-1,PRODUCTS.length-1);
-      cartItems.push(PRODUCTS[pidx].name+" x"+cm[2]);
-      updateCartCount(cartCount + parseInt(cm[2]));
+      const product=PRODUCTS[pidx];
+      if(product && product.variantId){
+        const qty=Math.max(1, Number(cm[2]||1));
+        const nextLines=buildNextCartLines(product, qty);
+        syncCartState(nextLines);
+        try{
+          const cartResult=await createCheckoutForCartLines(nextLines);
+          latestCheckoutUrl=cartResult.checkoutUrl;
+          saveCartState();
+        }catch(cartErr){
+          console.warn("AI cart command checkout failed", cartErr);
+        }
+      }
     }
 
     speak(html, ()=>{
@@ -997,35 +1009,65 @@ function toggleChips(force){
   document.getElementById("quickChips").style.display=chipsVisible?"flex":"none";
 }
 function cloneCartLines(lines){
-  return (lines||[]).map(line=>({
-    productId: line.productId,
-    name: line.name,
-    variantId: line.variantId,
-    quantity: Number(line.quantity||1)
-  }));
+  const merged=new Map();
+  (lines||[]).forEach(line=>{
+    if(!line || !line.variantId) return;
+    const key=String(line.variantId);
+    const qty=Math.max(1, Math.min(99, Number(line.quantity||1)));
+    const current=merged.get(key);
+    if(current){
+      current.quantity=Math.min(99, current.quantity + qty);
+    }else{
+      merged.set(key,{
+        productId: line.productId || key,
+        name: String(line.name || "Produk"),
+        variantId: key,
+        quantity: qty
+      });
+    }
+  });
+  return Array.from(merged.values());
 }
 function getCartQuantity(lines){
   return (lines||[]).reduce((sum,line)=>sum + Math.max(1, Number(line.quantity||1)), 0);
 }
-function syncCartState(lines){
+function saveCartState(){
+  try{ localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({cartLines, latestCheckoutUrl})); }catch(e){}
+}
+function loadCartState(){
+  const stored=safeJSONParse(localStorage.getItem(CART_STORAGE_KEY));
+  if(stored && Array.isArray(stored.cartLines)){
+    cartLines=cloneCartLines(stored.cartLines);
+    cartItems=cartLines.map(line => `${line.name} x${line.quantity}`);
+    latestCheckoutUrl=String(stored.latestCheckoutUrl||"");
+    updateCartCount(getCartQuantity(cartLines));
+  }
+}
+function syncCartState(lines, opts){
   cartLines = cloneCartLines(lines);
   cartItems = cartLines.map(line => `${line.name} x${line.quantity}`);
   updateCartCount(getCartQuantity(cartLines));
+  if(!opts || opts.persist!==false) saveCartState();
 }
-function buildNextCartLines(product){
+function buildNextCartLines(product, qty){
   const next = cloneCartLines(cartLines);
   const existing = next.find(line => line.variantId === product.variantId);
+  const addQty = Math.max(1, Math.min(99, Number(qty||1)));
   if(existing){
-    existing.quantity = Math.min(99, Math.max(1, Number(existing.quantity||1)) + 1);
+    existing.quantity = Math.min(99, Math.max(1, Number(existing.quantity||1)) + addQty);
   }else{
     next.push({
       productId: product.id,
       name: product.name,
       variantId: product.variantId,
-      quantity: 1
+      quantity: addQty
     });
   }
   return next;
+}
+function clearCartState(){
+  cartLines=[]; cartItems=[]; latestCheckoutUrl=""; updateCartCount(0);
+  try{ localStorage.removeItem(CART_STORAGE_KEY); }catch(e){}
 }
 async function createCheckoutForCartLines(lines){
   const validLines = (lines||[])
@@ -1042,7 +1084,7 @@ async function createCheckoutForCartLines(lines){
   const cartRes=await fetch("/api/shopify-cart",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ lines: validLines })
+    body:JSON.stringify({ lines: validLines, preferPermalink:true, expectedTotalQuantity:getCartQuantity(lines), clientVersion:APP_VERSION })
   });
 
   const rawText=await cartRes.text();
@@ -1121,12 +1163,24 @@ async function addToCart(e){
 window.addToCart = addToCart;
 window.showCart = showCart;
 
-function showCart(){
+async function showCart(){
   if(latestCheckoutUrl){
-    window.open(latestCheckoutUrl,"_blank");
+    window.open(latestCheckoutUrl,"_blank","noopener");
     return;
   }
-  alert("Belum ada checkout aktif Kak. Pilih produk lewat chat dulu, lalu minta Pak Civo buatkan checkout Shopify 😊");
+  if(cartLines.length){
+    try{
+      const result=await createCheckoutForCartLines(cartLines);
+      latestCheckoutUrl=result.checkoutUrl;
+      saveCartState();
+      window.open(latestCheckoutUrl,"_blank","noopener");
+      return;
+    }catch(error){
+      alert("Checkout gagal: "+(error.message||"Unknown error"));
+      return;
+    }
+  }
+  alert("Keranjang masih kosong. Pilih produk lalu klik + Keranjang.");
 }
 function shareWA(){
   const p=PRODUCTS[curProd];
@@ -1156,6 +1210,7 @@ setInterval(()=>{
   document.getElementById("viewerCount").textContent=v.toLocaleString("id");
 },8000);
 initLeadGate();
+loadCartState();
 
 </script>
 <!-- PULL TO REFRESH -->
