@@ -379,7 +379,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <div class="top-bar">
     <div style="display:flex;align-items:center;gap:8px">
       <div class="live-pill"><div class="live-dot"></div>LIVE</div>
-      <div class="viewer-pill">👁 <span id="viewerCount">1.247</span></div>
+      <div class="viewer-pill">👁 <span id="viewerCount">128</span></div>
     </div>
     <div class="brand-pill">
       <div class="brand-av">🥩</div>
@@ -487,6 +487,8 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
+const APP_VERSION = "v2.3.3-shopify-live-cart-badge";
+console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
     id: "samcan-lokal-1kg",
@@ -707,14 +709,9 @@ function initLeadGate(){
 
 
 // Build strip
-const ps=document.getElementById("psScroll");
-PRODUCTS.forEach((p,i)=>{
-  const el=document.createElement("div");
-  el.className="ps-chip"+(i===0?" active":"");
-  el.innerHTML=`<span class="ps-e">${p.emoji}</span><span class="ps-n">${p.name.split(" ")[0]}</span><span class="ps-p">${p.price}</span>`;
-  el.onclick=()=>setProduct(i);
-  ps.appendChild(el);
-});
+refreshProductStrip();
+setProduct(0);
+hydrateProductsFromShopify();
 
 function setProduct(idx){
   curProd=idx;const p=PRODUCTS[idx];
@@ -723,6 +720,59 @@ function setProduct(idx){
   document.getElementById("pcPrice").textContent=p.price;
   document.getElementById("pcUnit").textContent=p.unit;
   document.querySelectorAll(".ps-chip").forEach((c,i)=>c.classList.toggle("active",i===idx));
+}
+
+function updateCartCount(count){
+  cartCount = Math.max(0, Number(count)||0);
+  const badge=document.getElementById("cartBadge");
+  const side=document.getElementById("cartSlbl");
+  if(badge) badge.textContent=cartCount;
+  if(side) side.textContent=cartCount;
+}
+
+function formatShopifyPriceToRb(value){
+  const n=Number(value||0);
+  if(!Number.isFinite(n) || n<=0) return "";
+  const rb=n/1000;
+  return (Number.isInteger(rb) ? String(rb) : String(Math.round(rb*10)/10)) + "rb";
+}
+
+function refreshProductStrip(){
+  const ps=document.getElementById("psScroll");
+  if(!ps) return;
+  ps.innerHTML="";
+  PRODUCTS.forEach((p,i)=>{
+    const el=document.createElement("div");
+    el.className="ps-chip"+(i===curProd?" active":"");
+    el.innerHTML=`<span class="ps-e">${p.emoji}</span><span class="ps-n">${escapeHtml(p.name.split(" ")[0])}</span><span class="ps-p">${escapeHtml(p.price)}</span>`;
+    el.onclick=()=>setProduct(i);
+    ps.appendChild(el);
+  });
+}
+
+async function hydrateProductsFromShopify(){
+  // Keep variant IDs fixed for reliable checkout, but refresh visible title/price from Shopify.
+  try{
+    const res=await fetch("/api/shopify-products?q=samcan",{cache:"no-store"});
+    const data=await res.json();
+    if(!data.ok || !Array.isArray(data.products)) return;
+    const byVariant=new Map();
+    data.products.forEach(prod=>{
+      (prod.variants||[]).forEach(v=>{ if(v && v.id) byVariant.set(v.id,{prod,v}); });
+    });
+    PRODUCTS.forEach(p=>{
+      const found=byVariant.get(p.variantId);
+      if(!found) return;
+      const price=formatShopifyPriceToRb(found.v.price);
+      if(price) p.price=price;
+      p.shopifyTitle=found.prod.title;
+      p.availableForSale=found.v.availableForSale!==false;
+    });
+    refreshProductStrip();
+    setProduct(curProd);
+  }catch(e){
+    console.warn("Shopify product hydration skipped", e);
+  }
 }
 
 // ── TALKING STATE ──
@@ -923,9 +973,7 @@ async function send(){
     if(cm){
       const pidx=Math.min(parseInt(cm[1].replace("p",""))-1,PRODUCTS.length-1);
       cartItems.push(PRODUCTS[pidx].name+" x"+cm[2]);
-      cartCount+=parseInt(cm[2]);
-      document.getElementById("cartBadge").textContent=cartCount;
-      document.getElementById("cartSlbl").textContent=cartCount;
+      updateCartCount(cartCount + parseInt(cm[2]));
     }
 
     speak(html, ()=>{
@@ -992,17 +1040,13 @@ async function addToCart(e){
 
   // Immediate visual feedback so user knows the tap/click is registered.
   cartItems=[`${p.name} x1`];
-  cartCount=1;
-  document.getElementById("cartBadge").textContent=cartCount;
-  document.getElementById("cartSlbl").textContent=cartCount;
+  updateCartCount(1);
 
   try{
     const result=await createCheckoutForProduct(p,1);
     latestCheckoutUrl=result.checkoutUrl;
     cartItems=[`${result.product.title} x1`];
-    cartCount=1;
-    document.getElementById("cartBadge").textContent=cartCount;
-    document.getElementById("cartSlbl").textContent=cartCount;
+    updateCartCount(1);
     const rb=document.getElementById("pcReply");
     const pcTextEl=document.getElementById("pcText");
     const html=fmt(`Siap Kak, saya buatkan checkout untuk **${result.product.title}**.`, result.checkoutUrl);
@@ -1014,9 +1058,7 @@ async function addToCart(e){
     console.error("Add to cart failed:", error);
     latestCheckoutUrl="";
     cartItems=[];
-    cartCount=0;
-    document.getElementById("cartBadge").textContent=cartCount;
-    document.getElementById("cartSlbl").textContent=cartCount;
+    updateCartCount(0);
     const rb=document.getElementById("pcReply");
     const pcTextEl=document.getElementById("pcText");
     if(rb && pcTextEl){
