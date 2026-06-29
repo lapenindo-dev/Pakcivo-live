@@ -1,8 +1,8 @@
 {
   "name": "pakcivo-live",
-  "version": "5.0.1",
+  "version": "5.0.3",
   "private": true,
-  "description": "CIVO MEAT — Pak Civo Live best-selling 5 showroom release",
+  "description": "CIVO MEAT — Pak Civo Live voice speed 1.2x release",
   "engines": {
     "node": "20.x"
   }
