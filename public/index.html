@@ -488,11 +488,86 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 </div>
 <script>
 const PRODUCTS = [
-  {name:"SamcanOn PorkBelly Lokal",desc:"Favorit Babi Hong & Sio Bak",price:"130rb",unit:"/ 1 kg",emoji:"🥓",query:"samcan pork belly lokal"},
-  {name:"SamcanOff Slice Lokal",desc:"Wajib Korean BBQ Samgyeopsal",price:"65rb",unit:"/ 500g",emoji:"🔥",query:"samcan slice lokal"},
-  {name:"PorkRibs Paikut Sop",desc:"Bakut & Sop Iga kaya rasa",price:"50rb",unit:"/ 500g",emoji:"🍖",query:"paikut ribs sop"},
-  {name:"PorkCollar Kapsim Kembang",desc:"Premium marbling Char Siu",price:"95rb",unit:"/ 1 kg",emoji:"💎",query:"kapsim pork collar"},
-  {name:"Babi Giling",desc:"Serba guna bakso & tumisan",price:"40rb",unit:"/ 500g",emoji:"🥩",query:"babi giling"},
+  {
+    id: "samcan-lokal-1kg",
+    name: "Samcan Lokal 1kg",
+    desc: "Samcan lokal frozen vacuum pack. Cocok untuk masakan harian, babi kecap, panggang, atau rebus.",
+    price: "122rb",
+    unit: "/ 1 kg",
+    emoji: "🥓",
+    query: "Samcan Babi Pork Belly Lokal 1kg Frozen Vacuum Pack",
+    variantId: "gid://shopify/ProductVariant/48252265136282"
+  },
+  {
+    id: "samcan-kulit-1kg",
+    name: "Samcan Kulit 1kg",
+    desc: "Samcan dengan kulit. Cocok untuk babi hong, crispy pork belly, dan masakan yang butuh lapisan kulit.",
+    price: "139rb",
+    unit: "/ 1 kg",
+    emoji: "🥓",
+    query: "Samcan Kulit Pork Belly Wuhua Rou 1kg",
+    variantId: "gid://shopify/ProductVariant/48497419419802"
+  },
+  {
+    id: "samcan-import-1kg",
+    name: "Samcan Import 1kg",
+    desc: "Samcan import dengan potongan lebih konsisten. Cocok untuk grill, shabu, hotpot, dan Korean BBQ.",
+    price: "152rb",
+    unit: "/ 1 kg",
+    emoji: "🥓",
+    query: "Pork Belly Samcan Daging Babi Import Wuhua Rou 1kg",
+    variantId: "gid://shopify/ProductVariant/48497412604058"
+  },
+  {
+    id: "samcan-skin-off-import-1kg",
+    name: "Samcan Skin Off Import 1kg",
+    desc: "Samcan import tanpa kulit. Cocok untuk customer yang mau lebih banyak daging dan lemak tanpa kulit.",
+    price: "159rb",
+    unit: "/ 1 kg",
+    emoji: "🥩",
+    query: "Samcan Babi Pork Belly IMPORT without Skin Skin Off 1kg",
+    variantId: "gid://shopify/ProductVariant/48497412243610"
+  },
+  {
+    id: "samcan-slice-korean-bbq-500g",
+    name: "Samcan Slice Korean BBQ 500g",
+    desc: "Slice tipis untuk Korean BBQ. Cepat matang dan cocok untuk grill rumahan.",
+    price: "68rb",
+    unit: "/ 500 g",
+    emoji: "🔥",
+    query: "Pork Belly Slice SamGyeopSal Korean Bbq Samcan Babi Iris tipis 500gram",
+    variantId: "gid://shopify/ProductVariant/48497419157658"
+  },
+  {
+    id: "samgyeopsal-import-tipis-500g",
+    name: "Samgyeopsal Import Tipis 500g",
+    desc: "Slice import tipis 2mm. Cocok untuk BBQ cepat, hotplate, dan shabu.",
+    price: "86rb",
+    unit: "/ 500 g",
+    emoji: "🔥",
+    query: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TIPIS 2mm 500gr",
+    variantId: "gid://shopify/ProductVariant/48497413292186"
+  },
+  {
+    id: "samgyeopsal-import-tebal-500g",
+    name: "Samgyeopsal Import Tebal 500g",
+    desc: "Slice import tebal 8–10mm. Cocok untuk BBQ premium dengan tekstur lebih juicy.",
+    price: "86rb",
+    unit: "/ 500 g",
+    emoji: "🔥",
+    query: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TEBAL 8-10mm 500gr",
+    variantId: "gid://shopify/ProductVariant/48497411063962"
+  },
+  {
+    id: "samcan-babi-kecap-500g",
+    name: "Samcan Babi Kecap 500g",
+    desc: "Samcan potong dadu. Praktis untuk babi kecap, tumisan, dan masakan rumahan.",
+    price: "72.5rb",
+    unit: "/ 500 g",
+    emoji: "🍲",
+    query: "Daging Babi Samcan Pork Belly Potong Dadu Babi Kecap 500gr",
+    variantId: "gid://shopify/ProductVariant/48497412669594"
+  }
 ];
 let curProd=0,cartCount=0,isLoading=false,cartItems=[],latestCheckoutUrl="";
 let messages=[{role:"assistant",content:"Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik!"}];
@@ -827,11 +902,13 @@ async function send(){
     pcTextEl.parentNode.scrollTop=pcTextEl.parentNode.scrollHeight;
 
     const t=reply.toLowerCase();
-    if(t.includes("samcanoff")||t.includes("korean")||t.includes("samgyeopsal"))setProduct(1);
-    else if(t.includes("paikut")||t.includes("bakut"))setProduct(2);
-    else if(t.includes("kapsim")||t.includes("char siu")||t.includes("moksal"))setProduct(3);
-    else if(t.includes("giling")||t.includes("bakso"))setProduct(4);
-    else if(t.includes("samcanon")||t.includes("babi hong")||t.includes("sio bak"))setProduct(0);
+    if(t.includes("tebal")||t.includes("8-10mm"))setProduct(6);
+    else if(t.includes("tipis")||t.includes("2mm")||t.includes("korean")||t.includes("samgyeopsal"))setProduct(4);
+    else if(t.includes("skin off")||t.includes("tanpa kulit"))setProduct(3);
+    else if(t.includes("import"))setProduct(2);
+    else if(t.includes("babi kecap")||t.includes("potong dadu"))setProduct(7);
+    else if(t.includes("babi hong")||t.includes("sio bak")||t.includes("kulit"))setProduct(1);
+    else if(t.includes("samcan")||t.includes("pork belly"))setProduct(0);
 
     var cm=null;
     var cartIdx=reply.indexOf("<<CART:ADD:");
@@ -872,30 +949,31 @@ function toggleChips(force){
   document.getElementById("quickChips").style.display=chipsVisible?"flex":"none";
 }
 async function createCheckoutForProduct(product, quantity){
-  const searchQuery=product.query || product.name;
-  const productRes=await fetch("/api/shopify-products?q="+encodeURIComponent(searchQuery));
-  const productData=await productRes.json();
-  if(!productRes.ok || !productData.ok || !Array.isArray(productData.products) || !productData.products.length){
-    throw new Error("Produk belum ketemu di Shopify");
+  if(!product || !product.variantId){
+    throw new Error("Variant ID produk belum tersedia");
   }
-  const firstAvailable=productData.products
-    .flatMap(item => (item.variants||[]).map(v => ({product:item, variant:v})))
-    .find(row => row.variant && row.variant.availableForSale && row.variant.id);
-  if(!firstAvailable){
-    throw new Error("Varian produk belum tersedia");
-  }
+
   const cartRes=await fetch("/api/shopify-cart",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      lines:[{variantId:firstAvailable.variant.id, quantity:Math.max(1, Number(quantity)||1)}]
+      lines:[{
+        variantId:product.variantId,
+        quantity:Math.max(1, Number(quantity)||1)
+      }]
     })
   });
+
   const cartData=await cartRes.json();
   if(!cartRes.ok || !cartData.ok || !cartData.checkoutUrl){
-    throw new Error(cartData?.error || "Checkout Shopify gagal dibuat");
+    throw new Error(cartData?.error || cartData?.errors?.[0]?.message || "Checkout Shopify gagal dibuat");
   }
-  return {checkoutUrl:cartData.checkoutUrl, product:firstAvailable.product, variant:firstAvailable.variant};
+
+  return {
+    checkoutUrl:cartData.checkoutUrl,
+    product:{title:product.name},
+    variant:{id:product.variantId}
+  };
 }
 async function addToCart(e){
   if(!ensureLeadReady())return;
