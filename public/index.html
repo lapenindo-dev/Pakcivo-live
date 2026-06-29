@@ -145,11 +145,18 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
   border:1px solid rgba(255,255,255,0.1);transition:transform 0.15s;
 }
 .sicon:active{transform:scale(0.88);}
+.sact.active .sicon{border-color:rgba(200,133,74,0.56);box-shadow:0 0 0 3px rgba(200,133,74,0.14);}
+.sact.active .slbl{color:var(--copper);}
+.like-generic{font-size:25px;color:#fff;line-height:1;text-shadow:0 4px 14px rgba(0,0,0,0.45);}
+.like-generic.liked{color:#ff4d66;}
 .ui-icon-img{display:block;width:100%;height:100%;object-fit:contain;}
 .sicon .ui-icon-img{width:34px;height:34px;border-radius:12px;}
 .brand-av .ui-icon-img{width:22px;height:22px;border-radius:7px;}
 .pc-emoji{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pc-emoji .ui-icon-img{width:34px;height:34px;border-radius:9px;}
+.product-photo{display:block;object-fit:cover;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);}
+.pc-emoji .product-photo{width:38px;height:38px;border-radius:11px;box-shadow:0 4px 14px rgba(0,0,0,0.28);}
+.product-fallback{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);font-size:18px;}
 .ps-icon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
 .qchip{display:inline-flex;align-items:center;gap:6px;}
 .qicon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
@@ -217,8 +224,19 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 .ps-p{font-size:10px;color:var(--copper);font-weight:800;}
 
 /* ── QUICK CHIPS ── */
-.quick-chips{position:absolute;bottom:78px;left:14px;right:14px;z-index:37;display:none;flex-wrap:wrap;gap:5px;}
-.qchip{background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(200,133,74,0.3);color:rgba(200,133,74,0.95);font-size:11px;font-weight:700;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
+/* Premium mini-popup: anchored near the right Chat action, away from product strip/card. */
+.quick-chips{position:absolute;right:62px;bottom:252px;left:auto;z-index:38;display:none;flex-direction:column;align-items:stretch;gap:7px;width:206px;padding:11px;border-radius:18px;background:linear-gradient(180deg,rgba(18,13,9,0.96),rgba(6,5,4,0.92));backdrop-filter:blur(18px);border:1px solid rgba(200,133,74,0.38);box-shadow:0 16px 38px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);}
+.quick-chips::after{content:"";position:absolute;right:-7px;top:50px;width:12px;height:12px;transform:rotate(45deg);background:rgba(16,12,8,0.96);border-right:1px solid rgba(200,133,74,0.34);border-top:1px solid rgba(200,133,74,0.34);}
+.quick-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 6px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:3px;}
+.quick-panel-title{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--copper);}
+.quick-panel-sub{font-size:9px;font-weight:700;color:rgba(245,237,208,0.54);}
+.qchip{background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.075);color:rgba(245,237,208,0.96);font-size:12px;font-weight:850;padding:9px 10px;border-radius:12px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-height:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035);}
+.qchip:active{transform:scale(0.98);} 
+.qchip:hover{border-color:rgba(200,133,74,0.46);background:rgba(200,133,74,0.11);} 
+@media (max-width: 420px){
+  .quick-chips{right:58px;bottom:248px;width:194px;padding:10px;gap:6px;}
+  .qchip{font-size:11.5px;padding:8px 10px;min-height:38px;}
+}
 
 /* ── BOTTOM BAR ── */
 .bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:30;background:rgba(5,4,2,0.97);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,0.06);padding:8px 14px 22px;display:flex;align-items:center;gap:8px;}
@@ -472,10 +490,10 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sact" onclick="doLike(event)">
-      <div class="sicon" id="likeIcon"><img class="ui-icon-img" src="/icons/pakcivo-premium-favorite.png" alt="Favorit"></div>
+      <div class="sicon like-generic" id="likeIcon" aria-label="Favorit">♥</div>
       <div class="slbl" id="likeCount">2.3rb</div>
     </div>
-    <div class="sact" onclick="toggleChips()">
+    <div class="sact" id="chatQuickAction" onclick="toggleChips()">
       <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-chat-host.png" alt="Chat"></div>
       <div class="slbl">Chat</div>
     </div>
@@ -517,6 +535,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
+    <div class="quick-panel-head"><div><div class="quick-panel-title">Quick Chat</div><div class="quick-panel-sub">5 produk favorit</div></div></div>
     <div class="qchip" onclick="sendQ('Samcan lokal 1kg')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Samcan Lokal</div>
     <div class="qchip" onclick="sendQ('Babi giling 500g')"><img class="qicon" src="/icons/pakcivo-product-catalog.png" alt=""> Babi Giling</div>
     <div class="qchip" onclick="sendQ('Paikut sop 500g')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Paikut Sop</div>
@@ -563,7 +582,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v5.0.4-premium-icons";
+const APP_VERSION = "v5.0.6-product-images-like-fix";
 console.log("Tokopakcivo", APP_VERSION);
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
@@ -587,7 +606,7 @@ const PRODUCTS = [
     price: "130rb",
     unit: "/ 1 kg",
     emoji: "🥓",
-    icon: ICONS.bestProducts,
+    icon: null,
     query: "Samcan Lokal 1kg",
     variantId: "gid://shopify/ProductVariant/48252265136282",
     availableForSale: true
@@ -599,7 +618,7 @@ const PRODUCTS = [
     price: "40rb",
     unit: "/ 500 g",
     emoji: "🥩",
-    icon: ICONS.productCatalog,
+    icon: null,
     query: "Babi Giling 500g",
     variantId: "",
     availableForSale: true
@@ -611,7 +630,7 @@ const PRODUCTS = [
     price: "50rb",
     unit: "/ 500 g",
     emoji: "🍖",
-    icon: ICONS.bbqPackage,
+    icon: null,
     query: "Paikut Sop 500g",
     variantId: "",
     availableForSale: true
@@ -623,7 +642,7 @@ const PRODUCTS = [
     price: "80rb",
     unit: "/ 1 kg",
     emoji: "🔪",
-    icon: ICONS.recommendation,
+    icon: null,
     query: "Kapsim 1kg Shoulder Babi",
     variantId: "",
     availableForSale: true
@@ -635,7 +654,7 @@ const PRODUCTS = [
     price: "150rb",
     unit: "/ 1 kg",
     emoji: "🔥",
-    icon: ICONS.premiumFavorite,
+    icon: null,
     query: "Samcan Import 1kg",
     variantId: "gid://shopify/ProductVariant/48497412604058",
     availableForSale: true
@@ -919,9 +938,18 @@ function uiIconHtml(src, alt, cls){
   if(!src) return "";
   return `<img class="${escapeHtml(cls||"ui-icon-img")}" src="${escapeHtml(src)}" alt="${escapeHtml(alt||"")}" loading="lazy" decoding="async">`;
 }
+function productImageSrc(p){
+  const img = p && (p.image || p.featuredImage || p.shopifyImage);
+  return typeof img === "string" && /^https?:\/\//i.test(img) ? img : "";
+}
 function productIconHtml(p, cls){
-  if(p && p.icon) return uiIconHtml(p.icon, p.name||"Produk", cls||"ui-icon-img");
-  return `<span>${escapeHtml(p?.emoji||"🥩")}</span>`;
+  const image=productImageSrc(p);
+  if(image){
+    const klass=cls==="ps-icon" ? "ps-icon product-photo" : "ui-icon-img product-photo";
+    return `<img class="${klass}" src="${escapeHtml(image)}" alt="${escapeHtml(p?.name||"Produk")}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
+  }
+  const fallbackCls=cls==="ps-icon" ? "ps-icon product-fallback" : "product-fallback";
+  return `<span class="${fallbackCls}" aria-hidden="true">${escapeHtml(p?.emoji||"🥩")}</span>`;
 }
 function productFromShopifyProduct(prod){
   const variants=Array.isArray(prod?.variants)?prod.variants:[];
@@ -935,7 +963,7 @@ function productFromShopifyProduct(prod){
     price: formatShopifyPriceToRb(variant.price) || "",
     unit: inferUnitFromTitle(prod.title, variant.title),
     emoji: emojiForProduct(`${prod.title||""} ${prod.productType||""}`),
-    icon: iconForProduct(`${prod.title||""} ${prod.productType||""}`),
+    icon: null,
     query: prod.title || name,
     variantId: variant.id,
     image: prod.image || null,
@@ -985,7 +1013,7 @@ function mergeBestSellerProduct(base, mapped){
     unit: mapped.unit || base.unit,
     variantId: mapped.variantId || base.variantId,
     image: mapped.image || base.image || null,
-    icon: base.icon || mapped.icon || ICONS.bestProducts,
+    icon: null,
     availableForSale: mapped.availableForSale!==false,
     query: mapped.query || base.query,
     shopifyName: mapped.name || base.shopifyName || ""
@@ -1517,11 +1545,19 @@ async function send(){
   isLoading=false;
 }
 
-function sendQ(t){if(!ensureLeadReady())return;document.getElementById("msgInput").value=t;send();}
+function sendQ(t){
+  if(!ensureLeadReady())return;
+  toggleChips(false);
+  document.getElementById("msgInput").value=t;
+  send();
+}
 function toggleChips(force){
   if(!currentLead && force!==false){showLeadGate();return;}
   chipsVisible=force!==undefined?force:!chipsVisible;
-  document.getElementById("quickChips").style.display=chipsVisible?"flex":"none";
+  const panel=document.getElementById("quickChips");
+  panel.style.display=chipsVisible?"flex":"none";
+  const chatAction=document.getElementById("chatQuickAction");
+  if(chatAction) chatAction.classList.toggle("active", chipsVisible);
 }
 function cloneCartLines(lines){
   const merged=new Map();
@@ -1708,8 +1744,10 @@ function shareWA(){
 function doLike(e){
   likeVal+=Math.floor(Math.random()*5)+1;
   document.getElementById("likeCount").textContent=(likeVal/1000).toFixed(1)+"rb";
-  document.getElementById("likeIcon").style.transform="scale(1.5)";
-  setTimeout(()=>document.getElementById("likeIcon").style.transform="",250);
+  const likeIcon=document.getElementById("likeIcon");
+  likeIcon.classList.add("liked");
+  likeIcon.style.transform="scale(1.32)";
+  setTimeout(()=>{ likeIcon.style.transform=""; },250);
   for(let i=0;i<3;i++){
     setTimeout(()=>{
       const h=document.createElement("div");h.className="heart-float";
@@ -1722,8 +1760,15 @@ function doLike(e){
   }
 }
 console.log("Tokopakcivo", APP_VERSION);
+document.addEventListener("click", (ev)=>{
+  const panel=document.getElementById("quickChips");
+  const trigger=document.getElementById("chatQuickAction");
+  if(!panel || !trigger || !chipsVisible) return;
+  if(panel.contains(ev.target) || trigger.contains(ev.target)) return;
+  toggleChips(false);
+});
 document.getElementById("msgInput").addEventListener("keydown",e=>{if(e.key==="Enter")send();});
-document.getElementById("msgInput").addEventListener("focus",()=>{ if(!ensureLeadReady())return; toggleChips(true); });
+document.getElementById("msgInput").addEventListener("focus",()=>{ ensureLeadReady(); });
 setInterval(()=>{
   const v=78+Math.floor(Math.random()*102);
   document.getElementById("viewerCount").textContent=v.toLocaleString("id");
