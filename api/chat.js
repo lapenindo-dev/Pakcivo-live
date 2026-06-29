@@ -70,6 +70,135 @@ function normalizeText(value) {
     .trim();
 }
 
+
+
+const SHOPIFY_FALLBACK_PRODUCTS = [
+  {
+    id: "gid://shopify/Product/8979847381146",
+    title: "Samcan Babi Pork Belly Lokal 1kg Frozen Vacuum Pack",
+    handle: "samcan-babi-pork-belly-lokal-1kg-frozen-vacuum-pack",
+    description: "Samcan Pork Belly Lokal 1kg Frozen Vacuum Pack",
+    tags: [],
+    productType: "",
+    image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/rn-image_picker_lib_temp_97c57387-c29b-42ee-b35f-5aef1a5b05d0.jpg?v=1781663022",
+    variants: [{ id: "gid://shopify/ProductVariant/48252265136282", title: "Default Title", sku: null, availableForSale: true, price: 122000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000013562010",
+    title: "Samcan Kulit / Pork Belly / Wuhua Rou - 1kg",
+    handle: "jual-daging-babi-samcan-kulit-pork-belly-wuhua-rou-1kg-1",
+    description: "",
+    tags: [],
+    productType: "",
+    image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/SAMCANON1kg.png?v=1782372160",
+    variants: [{ id: "gid://shopify/ProductVariant/48497419419802", title: "Default Title", sku: "Belly1kg", availableForSale: true, price: 139000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000009859226",
+    title: "Pork Belly Samcan Daging Babi Import Wuhua Rou - 1kg",
+    handle: "pork-belly-samcan-daging-babi-import-wuhua-rou-1kg",
+    description: "",
+    tags: [],
+    productType: "",
+    image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/SAMCAN1kg.png?v=1782372745",
+    variants: [{ id: "gid://shopify/ProductVariant/48497412604058", title: "Default Title", sku: "SamcanImport1kg", availableForSale: true, price: 152000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000009498778",
+    title: "Samcan Babi Pork Belly IMPORT without Skin (Skin Off) - 1kg",
+    handle: "samcan-babi-pork-belly-import-without-skin-skin-off-1kg",
+    description: "",
+    tags: [],
+    productType: "",
+    image: null,
+    variants: [{ id: "gid://shopify/ProductVariant/48497412243610", title: "Default Title", sku: "SkinOffImport1kg", availableForSale: true, price: 159000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000013299866",
+    title: "Pork Belly Slice / SamGyeopSal Korean Bbq - Samcan Babi Iris tipis - 500gram",
+    handle: "pork-belly-slice-samgyeopsal-korean-bbq-samcan-babi-iris-tipis-500gram",
+    description: "",
+    tags: [],
+    productType: "",
+    image: null,
+    variants: [{ id: "gid://shopify/ProductVariant/48497419157658", title: "Default Title", sku: "bellyslice500g", availableForSale: true, price: 68000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000010547354",
+    title: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TIPIS 2mm 500gr",
+    handle: "samgyeopsal-import-samcan-pork-belly-import-slice-tipis-2mm-500gr",
+    description: "",
+    tags: [],
+    productType: "",
+    image: null,
+    variants: [{ id: "gid://shopify/ProductVariant/48497413292186", title: "Default Title", sku: "SamcanSliceImport500g", availableForSale: true, price: 86000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000008974490",
+    title: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TEBAL 8-10mm 500gr",
+    handle: "samgyeopsal-import-samcan-pork-belly-import-slice-tebal-8-10mm-500gr",
+    description: "",
+    tags: [],
+    productType: "",
+    image: null,
+    variants: [{ id: "gid://shopify/ProductVariant/48497411063962", title: "Default Title", sku: "SamgyeopsalTebal500g", availableForSale: true, price: 86000, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/9000009957530",
+    title: "Daging Babi Samcan Pork Belly Potong Dadu / Babi Kecap 500gr",
+    handle: "daging-babi-samcan-pork-belly-potong-dadu-babi-kecap-500gr",
+    description: "",
+    tags: [],
+    productType: "",
+    image: null,
+    variants: [{ id: "gid://shopify/ProductVariant/48497412669594", title: "Default Title", sku: "SamcanBabiKecap500g", availableForSale: true, price: 72500, currencyCode: "IDR" }],
+  },
+  {
+    id: "gid://shopify/Product/8999675855002",
+    title: "500g Streaky bacon / smoked bacon - 500g",
+    handle: "500g-streaky-bacon-smoked-bacon-500g",
+    description: "Smoked Bacon / Smoked Pork Belly 500g. Samcan Babi Asap Iris Tipis 3mm.",
+    tags: [],
+    productType: "Baso & Daging Olahan Lainnya",
+    image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/8dfd479d-64c8-4187-a0de-2eea472e518f.jpg?v=1782185272",
+    variants: [{ id: "gid://shopify/ProductVariant/48496503423130", title: "Default Title", sku: "Bacon500g", availableForSale: true, price: 60000, currencyCode: "IDR" }],
+  },
+];
+
+function fallbackProductsForQuery(rawQuery) {
+  const q = normalizeText(rawQuery);
+  if (!q) return SHOPIFY_FALLBACK_PRODUCTS.slice(0, 8);
+
+  const aliases = {
+    samcan: ["samcan", "pork belly", "belly", "wuhua", "samgyeopsal"],
+    "pork belly": ["samcan", "pork belly", "belly", "wuhua", "samgyeopsal"],
+    belly: ["samcan", "pork belly", "belly", "wuhua", "samgyeopsal"],
+    bbq: ["samgyeopsal", "slice", "bbq", "pork belly", "samcan"],
+    barbeque: ["samgyeopsal", "slice", "bbq", "pork belly", "samcan"],
+    bacon: ["bacon", "smoked"],
+    kecap: ["kecap", "dadu"],
+  };
+
+  const terms = new Set(q.split(" ").filter(Boolean));
+  for (const [key, values] of Object.entries(aliases)) {
+    if (q.includes(key)) values.forEach((v) => terms.add(v));
+  }
+
+  const scored = SHOPIFY_FALLBACK_PRODUCTS.map((product) => {
+    const text = normalizeText(`${product.title} ${product.handle} ${product.description} ${product.productType} ${product.tags.join(" ")}`);
+    let score = 0;
+    for (const term of terms) {
+      if (term && text.includes(term)) score += term.length > 5 ? 3 : 1;
+    }
+    return { product, score };
+  })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.product);
+
+  return scored.length ? scored.slice(0, 8) : SHOPIFY_FALLBACK_PRODUCTS.slice(0, 8);
+}
+
 function extractSearchQuery(messages) {
   const recent = messages.slice(-6);
   const latestUser = [...recent].reverse().find((m) => m.role !== "assistant")?.content || "";
@@ -212,7 +341,7 @@ async function shopifyGraphQL(query, variables = {}) {
       },
       body: JSON.stringify({ query, variables }),
     },
-    4500
+    8000
   );
 
   const data = await response.json();
@@ -292,6 +421,10 @@ async function searchShopifyProducts(rawQuery) {
       }),
     };
   });
+
+  if (products.length === 0) {
+    products = fallbackProductsForQuery(queryText);
+  }
 
   setCachedProducts(cacheKey, products);
   return products;
@@ -568,6 +701,11 @@ module.exports = async function handler(req, res) {
       }
     } catch (shopifyError) {
       console.error("Shopify product fetch error:", shopifyError.message);
+      products = fallbackProductsForQuery(searchQuery);
+    }
+
+    if (!products.length) {
+      products = fallbackProductsForQuery(searchQuery);
     }
 
     const productContext = buildProductContext(products);
