@@ -53,11 +53,12 @@ function cleanupRateMap() {
 }
 // ─────────────────────────────────────────────────────────────
 
-const MAX_HISTORY = 8;
+const MAX_HISTORY = 6;
 
 const MODELS = [
-  "gemini-2.5-flash",
+  "gemini-2.0-flash",
   "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
   "gemini-1.5-flash",
 ];
 
@@ -138,12 +139,70 @@ function formatRupiahShort(amount) {
   return String(n);
 }
 
+function parseBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    try { return JSON.parse(req.body); } catch (_) { return {}; }
+  }
+  return req.body;
+}
+
+function normalizeShopDomain(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
+}
+
+function getNumericVariantId(gid) {
+  const value = String(gid || "");
+  const match = value.match(/ProductVariant\/(\d+)/);
+  if (match && match[1]) return match[1];
+  if (/^\d+$/.test(value)) return value;
+  return "";
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const _productCache = new Map();
+const PRODUCT_CACHE_TTL = 45000;
+function getCachedProducts(key) {
+  const item = _productCache.get(key);
+  if (!item || Date.now() - item.time > PRODUCT_CACHE_TTL) return null;
+  return item.value;
+}
+function setCachedProducts(key, value) {
+  if (_productCache.size > 20) _productCache.clear();
+  _productCache.set(key, { value, time: Date.now() });
+}
+
+function buildCartPermalinkFromCommands(commands) {
+  const shop = normalizeShopDomain(process.env.SHOPIFY_CART_DOMAIN || SHOPIFY_STORE_DOMAIN || "civo-meat.myshopify.com");
+  const items = commands
+    .map((cmd) => {
+      const id = getNumericVariantId(cmd.variantId);
+      const qty = Math.max(1, Math.min(Number(cmd.quantity || 1), 99));
+      return id ? `${id}:${qty}` : "";
+    })
+    .filter(Boolean)
+    .join(",");
+  return shop && items ? `https://${shop}/cart/${items}` : "";
+}
+
 async function shopifyGraphQL(query, variables = {}) {
   if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
     throw new Error("Shopify environment variables belum lengkap.");
   }
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`,
     {
       method: "POST",
@@ -152,7 +211,8 @@ async function shopifyGraphQL(query, variables = {}) {
         "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_ACCESS_TOKEN,
       },
       body: JSON.stringify({ query, variables }),
-    }
+    },
+    4500
   );
 
   const data = await response.json();
@@ -167,6 +227,9 @@ async function shopifyGraphQL(query, variables = {}) {
 
 async function searchShopifyProducts(rawQuery) {
   const queryText = String(rawQuery || "").trim();
+  const cacheKey = queryText.toLowerCase();
+  const cached = getCachedProducts(cacheKey);
+  if (cached) return cached;
 
   const query = `
     query SearchProducts($query: String) {
@@ -205,7 +268,7 @@ async function searchShopifyProducts(rawQuery) {
 
   const data = await shopifyGraphQL(query, { query: queryText || null });
 
-  return data.products.edges.map((edge) => {
+  const products = data.products.edges.map((edge) => {
     const product = edge.node;
 
     return {
@@ -229,6 +292,9 @@ async function searchShopifyProducts(rawQuery) {
       }),
     };
   });
+
+  setCachedProducts(cacheKey, products);
+  return products;
 }
 
 async function createShopifyCart(variantId, quantity) {
@@ -336,7 +402,7 @@ function buildSystemPrompt(productContext) {
 BAHASA & GAYA:
 - Pakai Bahasa Indonesia santai, profesional, hangat.
 - Panggil customer "Kak".
-- Jawaban pendek: maksimal 3-4 kalimat.
+- Jawaban sangat pendek: maksimal 2-3 kalimat.
 - Emoji secukupnya.
 - Jangan bertele-tele.
 
@@ -348,7 +414,7 @@ ATURAN SUMBER DATA PRODUK:
 - Kalau availableForSale=false, jelaskan bahwa produk sedang tidak bisa dibeli.
 
 ATURAN MENJAWAB PRODUK:
-- Kalau customer tanya produk spesifik, sebutkan maksimal 3 pilihan paling relevan.
+- Kalau customer tanya produk spesifik, sebutkan maksimal 2 pilihan paling relevan.
 - Setiap menyebut produk, sertakan harga singkat, contoh: "Bacon 500g 60rb".
 - Boleh jelaskan beda produk berdasarkan title, description, productType, dan tags Shopify.
 - Kalau description Shopify kosong, jangan mengarang terlalu detail. Jelaskan secara umum dan singkat.
@@ -378,18 +444,18 @@ async function callGemini(systemPrompt, contents) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
           generationConfig: {
-            temperature: 0.45,
-            maxOutputTokens: 700,
+            temperature: 0.35,
+            maxOutputTokens: 260,
           },
         }),
-      });
+      }, 9000);
 
       if (response.status === 503 || response.status === 429) {
         console.warn(`Model ${model} unavailable (${response.status}), trying next...`);
@@ -417,43 +483,37 @@ async function callGemini(systemPrompt, contents) {
 
 async function processShopifyCartCommands(reply) {
   const commandRegex = /<<SHOPIFY_CART\|([^|>]+)\|(\d+)>>/g;
-  const commands = [...reply.matchAll(commandRegex)];
+  const matches = [...String(reply || "").matchAll(commandRegex)];
+  let cleanReply = String(reply || "").replace(commandRegex, "").replace(/\n{3,}/g, "\n\n").trim();
 
-  let cleanReply = reply.replace(commandRegex, "").replace(/\n{3,}/g, "\n\n").trim();
-
-  if (commands.length === 0) {
-    return {
-      reply: cleanReply,
-      checkoutUrl: null,
-      cart: null,
-    };
+  if (matches.length === 0) {
+    return { reply: cleanReply, checkoutUrl: null, cart: null };
   }
 
-  const first = commands[0];
-  const variantId = first[1];
-  const quantity = Number(first[2] || 1);
+  // Faster than Storefront cartCreate: build Shopify cart permalink directly.
+  const merged = new Map();
+  for (const match of matches) {
+    const variantId = String(match[1] || "").trim();
+    const quantity = Math.max(1, Math.min(Number(match[2] || 1), 99));
+    if (!variantId || !getNumericVariantId(variantId)) continue;
+    merged.set(variantId, (merged.get(variantId) || 0) + quantity);
+  }
 
-  try {
-    const cart = await createShopifyCart(variantId, quantity);
-    const checkoutUrl = cart.checkoutUrl;
+  const commands = Array.from(merged.entries()).map(([variantId, quantity]) => ({
+    variantId,
+    quantity: Math.min(quantity, 99),
+  }));
 
+  const checkoutUrl = buildCartPermalinkFromCommands(commands);
+  if (checkoutUrl) {
     cleanReply = `${cleanReply}\n\n🛒 Checkout Shopify:\n${checkoutUrl}`;
-
-    return {
-      reply: cleanReply,
-      checkoutUrl,
-      cart,
-    };
-  } catch (error) {
-    console.error("Cart create error:", error.message);
-    return {
-      reply:
-        cleanReply +
-        "\n\nMaaf Kak, link checkout Shopify belum berhasil dibuat. Coba ulangi sebentar lagi ya.",
-      checkoutUrl: null,
-      cart: null,
-    };
   }
+
+  return {
+    reply: cleanReply,
+    checkoutUrl: checkoutUrl || null,
+    cart: checkoutUrl ? { checkoutUrl, lines: commands } : null,
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -489,7 +549,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { messages } = req.body;
+    const { messages } = parseBody(req);
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });

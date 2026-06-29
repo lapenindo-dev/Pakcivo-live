@@ -41,17 +41,47 @@ function checkRateLimit(req) {
   return { allowed: true, ip };
 }
 
-// Cleanup old entries every 5 minutes to prevent memory leak
-setInterval(() => {
+function cleanupRateMap() {
   const now = Date.now();
   for (const [ip, entry] of _rateMap.entries()) {
     if (now - entry.start > 120000) _rateMap.delete(ip);
   }
-}, 300000);
+}
 // ─────────────────────────────────────────────────────────────
 
 
-module.exports.config = { maxDuration: 30 };
+module.exports.config = { maxDuration: 15 };
+
+const _audioCache = new Map();
+const MAX_CACHE_ITEMS = 80;
+function getBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    try { return JSON.parse(req.body); } catch (_) { return {}; }
+  }
+  return req.body;
+}
+function cacheGet(key) {
+  const item = _audioCache.get(key);
+  if (!item) return null;
+  item.lastUsed = Date.now();
+  return item.buffer;
+}
+function cacheSet(key, buffer) {
+  if (!key || !buffer) return;
+  if (_audioCache.size >= MAX_CACHE_ITEMS) {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [k, v] of _audioCache.entries()) {
+      if ((v.lastUsed || 0) < oldestTime) { oldestTime = v.lastUsed || 0; oldestKey = k; }
+    }
+    if (oldestKey) _audioCache.delete(oldestKey);
+  }
+  _audioCache.set(key, { buffer, lastUsed: Date.now() });
+}
+function makeCacheKey(text, voice, speed) {
+  return Buffer.from(`${voice}|${speed}|${text}`).toString("base64").slice(0, 220);
+}
 
 function cleanDoubleSpaces(text) {
   return text.replace(/\s+/g, " ").trim();
@@ -248,6 +278,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   // Rate limiting (stricter for TTS — more expensive)
+  cleanupRateMap();
   const rl = checkRateLimit(req);
   if (!rl.allowed) {
     return res.status(429).json({ error: "Rate limit exceeded" });
@@ -258,7 +289,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { text } = req.body;
+    const body = getBody(req);
+    const { text } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return res.status(400).json({ error: "Teks tidak boleh kosong." });
@@ -267,16 +299,29 @@ module.exports = async function handler(req, res) {
     const cleanText = text
       .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
       .replace(/[\u{2600}-\u{27BF}]/gu, "")
+      .replace(/https?:\/\/\S+/gi, " ")
       .replace(/\s+/g, " ")
-      .trim();
+      .trim()
+      .slice(0, 260);
 
-    const speechText = normalizeForSpeech(cleanText);
+    const speechText = normalizeForSpeech(cleanText).slice(0, 360);
 
     if (speechText.length === 0) {
       return res.status(400).json({ error: "Teks kosong setelah dibersihkan." });
     }
 
-    const trimmed = speechText.slice(0, 4096);
+    const voice = process.env.OPENAI_TTS_VOICE || "onyx";
+    const speed = Number(process.env.OPENAI_TTS_SPEED || 1.12);
+    const cacheKey = makeCacheKey(speechText, voice, speed);
+    const cached = cacheGet(cacheKey);
+
+    if (cached) {
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Length", cached.length);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("X-TTS-Cache", "HIT");
+      return res.status(200).send(cached);
+    }
 
     const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
@@ -285,11 +330,11 @@ module.exports = async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "tts-1",
-        input: trimmed,
-        voice: "onyx",
+        model: process.env.OPENAI_TTS_MODEL || "tts-1",
+        input: speechText,
+        voice,
         response_format: "mp3",
-        speed: 1.08,
+        speed,
       }),
     });
 
@@ -301,10 +346,12 @@ module.exports = async function handler(req, res) {
 
     const arrayBuffer = await ttsRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    cacheSet(cacheKey, buffer);
 
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("X-TTS-Cache", "MISS");
     return res.status(200).send(buffer);
   } catch (err) {
     console.error("TTS handler error:", err);
