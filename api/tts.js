@@ -318,17 +318,17 @@ module.exports = async function handler(req, res) {
       .replace(/https?:\/\/\S+/gi, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 420);
+      .slice(0, 260);
 
     let speechText = normalizeForSpeech(cleanText);
-    speechText = safeSpeechLimit(speechText, 520);
+    speechText = safeSpeechLimit(speechText, 320);
 
     if (speechText.length === 0) {
       return res.status(400).json({ error: "Teks kosong setelah dibersihkan." });
     }
 
     const voice = process.env.OPENAI_TTS_VOICE || "onyx";
-    const speed = Number(process.env.OPENAI_TTS_SPEED || 1.06);
+    const speed = Number(process.env.OPENAI_TTS_SPEED || 1.08);
     const cacheKey = makeCacheKey(speechText, voice, speed);
     const cached = cacheGet(cacheKey);
 
@@ -341,7 +341,7 @@ module.exports = async function handler(req, res) {
     }
 
     const openaiController = new AbortController();
-    const openaiTimeout = setTimeout(() => openaiController.abort(), 14500);
+    const openaiTimeout = setTimeout(() => openaiController.abort(), 12000);
 
     const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
