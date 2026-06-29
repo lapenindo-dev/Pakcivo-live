@@ -427,9 +427,9 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <div class="product-card">
     <div class="pc-emoji" id="pcEmoji">🥓</div>
     <div class="pc-info">
-      <div class="pc-name" id="pcName">SamcanOn PorkBelly Lokal</div>
+      <div class="pc-name" id="pcName">Samcan Lokal 1kg</div>
       <div class="pc-price-row">
-        <div class="pc-price" id="pcPrice">130rb</div>
+        <div class="pc-price" id="pcPrice">122rb</div>
         <div class="pc-unit" id="pcUnit">/ 1 kg</div>
       </div>
     </div>
@@ -958,15 +958,21 @@ async function createCheckoutForProduct(product, quantity){
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       lines:[{
-        variantId:product.variantId,
+        merchandiseId:product.variantId,
         quantity:Math.max(1, Number(quantity)||1)
       }]
     })
   });
 
-  const cartData=await cartRes.json();
+  const rawText=await cartRes.text();
+  let cartData={};
+  try{ cartData=rawText ? JSON.parse(rawText) : {}; }catch(parseErr){
+    throw new Error("Response checkout bukan JSON: "+rawText.slice(0,160));
+  }
+
   if(!cartRes.ok || !cartData.ok || !cartData.checkoutUrl){
-    throw new Error(cartData?.error || cartData?.errors?.[0]?.message || "Checkout Shopify gagal dibuat");
+    const shopifyError = cartData?.errors?.[0]?.message || cartData?.userErrors?.[0]?.message || cartData?.error;
+    throw new Error(shopifyError || "Checkout Shopify gagal dibuat");
   }
 
   return {
@@ -998,8 +1004,15 @@ async function addToCart(e){
     messages.push({role:"assistant",content:`Checkout dibuat untuk ${result.product.title}: ${result.checkoutUrl}`});
     speak(html);
   }catch(error){
-    document.getElementById("msgInput").value="Saya mau "+p.name+" 1 pack, buatkan checkout Shopify.";
-    send();
+    console.error("Add to cart failed:", error);
+    const rb=document.getElementById("pcReply");
+    const pcTextEl=document.getElementById("pcText");
+    if(rb && pcTextEl){
+      pcTextEl.innerHTML=`Maaf Kak, keranjang Shopify belum berhasil dibuat.<br><br><b>Error:</b> ${escapeHtml(error.message || "Unknown error")}<br><br>Silakan coba lagi atau hubungi admin.`;
+      rb.style.display="block";
+    }else{
+      alert("Checkout gagal: "+(error.message || "Unknown error"));
+    }
   }finally{
     btn.disabled=false;
     btn.textContent=oldText;
