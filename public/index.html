@@ -372,6 +372,51 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   50% { opacity:1; transform:translateY(-1px); }
 }
 
+
+
+/* ── PRODUCTION DESKTOP FRAME ── */
+@media (min-width: 768px) {
+  body {
+    background:
+      radial-gradient(circle at 50% 12%, rgba(200,133,74,0.18), transparent 28%),
+      linear-gradient(135deg,#050505,#15110d 52%,#050505);
+  }
+  .stage {
+    inset: 0 auto 0 50%;
+    width: min(480px, 100vw);
+    max-width: 480px;
+    transform: translateX(-50%);
+    border-left: 1px solid rgba(200,133,74,0.18);
+    border-right: 1px solid rgba(200,133,74,0.18);
+    box-shadow: 0 0 80px rgba(0,0,0,0.72);
+    background: #050505;
+  }
+}
+.pc-cta:disabled { opacity: .52; cursor: not-allowed; filter: grayscale(.25); }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 74px;
+  z-index: 900;
+  transform: translateX(-50%) translateY(18px);
+  width: min(420px, calc(100vw - 32px));
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: rgba(8,6,4,.94);
+  color: rgba(245,237,208,.94);
+  border: 1px solid rgba(200,133,74,.38);
+  box-shadow: 0 18px 50px rgba(0,0,0,.46);
+  font-size: 12px;
+  line-height: 1.38;
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.turnstile-box { margin: 8px 0 2px; min-height: 0; display: none; }
+.turnstile-box.active { display: flex; justify-content: center; }
+
 </style>
 </head>
 <body class="lead-locked">
@@ -458,7 +503,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
         <div class="pc-unit" id="pcUnit">/ 1 kg</div>
       </div>
     </div>
-    <button type="button" class="pc-cta" onclick="addToCart(event)">+ Keranjang</button>
+    <button id="addCartBtn" type="button" class="pc-cta" onclick="addToCart(event)">+ Keranjang</button>
   </div>
 
   <!-- PRODUCT STRIP -->
@@ -468,11 +513,11 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
-    <div class="qchip" onclick="sendQ('Produk terlaris')">🏆 Terlaris</div>
-    <div class="qchip" onclick="sendQ('Korean BBQ')">🔥 Korean BBQ</div>
-    <div class="qchip" onclick="sendQ('Paikut sop')">🍖 Paikut</div>
-    <div class="qchip" onclick="sendQ('Babi kecap')">🥢 Babi Kecap</div>
-    <div class="qchip" onclick="sendQ('Diskon')">💸 Diskon</div>
+    <div class="qchip" onclick="sendQ('Samcan lokal 1kg')">🥓 Samcan Lokal</div>
+    <div class="qchip" onclick="sendQ('Babi giling 500g')">🥩 Babi Giling</div>
+    <div class="qchip" onclick="sendQ('Paikut sop 500g')">🍖 Paikut Sop</div>
+    <div class="qchip" onclick="sendQ('Kapsim 1kg')">🔪 Kapsim</div>
+    <div class="qchip" onclick="sendQ('Samcan import 1kg')">🔥 Samcan Import</div>
   </div>
 
   <!-- BOTTOM BAR -->
@@ -501,6 +546,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
         <label for="leadWhatsApp">Nomor WhatsApp</label>
         <input id="leadWhatsApp" name="whatsapp" type="tel" inputmode="tel" placeholder="Contoh: 081280799493" required />
       </div>
+      <div class="turnstile-box" id="turnstileBox"></div>
 
       <button class="lead-submit" id="leadSubmit" type="submit">Mulai Tanya Pak Civo</button>
       <div class="lead-error" id="leadError"></div>
@@ -509,91 +555,67 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   </div>
 
   <button class="lead-reset-floating" id="leadResetBtn" type="button" onclick="clearLeadData()">Ganti Data</button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 </div>
 <script>
-const APP_VERSION = "v2.6.0-voice-sync-no-read-ahead";
+const APP_VERSION = "v5.0.1-best-selling-5";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
     id: "samcan-lokal-1kg",
     name: "Samcan Lokal 1kg",
     desc: "Samcan lokal frozen vacuum pack. Cocok untuk masakan harian, babi kecap, panggang, atau rebus.",
-    price: "122rb",
+    price: "130rb",
     unit: "/ 1 kg",
     emoji: "🥓",
-    query: "Samcan Babi Pork Belly Lokal 1kg Frozen Vacuum Pack",
-    variantId: "gid://shopify/ProductVariant/48252265136282"
+    query: "Samcan Lokal 1kg",
+    variantId: "gid://shopify/ProductVariant/48252265136282",
+    availableForSale: true
   },
   {
-    id: "samcan-kulit-1kg",
-    name: "Samcan Kulit 1kg",
-    desc: "Samcan dengan kulit. Cocok untuk babi hong, crispy pork belly, dan masakan yang butuh lapisan kulit.",
-    price: "139rb",
+    id: "babi-giling-500g",
+    name: "Babi Giling 500g",
+    desc: "Daging babi giling praktis untuk bakso, pangsit, bakmoy, tumisan, dan campuran masakan rumah.",
+    price: "40rb",
+    unit: "/ 500 g",
+    emoji: "🥩",
+    query: "Babi Giling 500g",
+    variantId: "",
+    availableForSale: true
+  },
+  {
+    id: "paikut-sop-500g",
+    name: "Paikut Sop 500g",
+    desc: "Paikut potongan sop untuk bakut, sup, rebusan, dan masakan kuah dengan rasa kaldu kuat.",
+    price: "50rb",
+    unit: "/ 500 g",
+    emoji: "🍖",
+    query: "Paikut Sop 500g",
+    variantId: "",
+    availableForSale: true
+  },
+  {
+    id: "kapsim-1kg",
+    name: "Kapsim 1kg",
+    desc: "Kapsim/shoulder serbaguna untuk tumis, cincang kasar, babi kecap, sup, dan masakan harian.",
+    price: "80rb",
     unit: "/ 1 kg",
-    emoji: "🥓",
-    query: "Samcan Kulit Pork Belly Wuhua Rou 1kg",
-    variantId: "gid://shopify/ProductVariant/48497419419802"
+    emoji: "🔪",
+    query: "Kapsim 1kg Shoulder Babi",
+    variantId: "",
+    availableForSale: true
   },
   {
     id: "samcan-import-1kg",
     name: "Samcan Import 1kg",
-    desc: "Samcan import dengan potongan lebih konsisten. Cocok untuk grill, shabu, hotpot, dan Korean BBQ.",
-    price: "152rb",
+    desc: "Samcan import dengan potongan lebih konsisten. Cocok untuk grill, hotpot, Korean BBQ, dan masakan premium.",
+    price: "150rb",
     unit: "/ 1 kg",
-    emoji: "🥓",
-    query: "Pork Belly Samcan Daging Babi Import Wuhua Rou 1kg",
-    variantId: "gid://shopify/ProductVariant/48497412604058"
-  },
-  {
-    id: "samcan-skin-off-import-1kg",
-    name: "Samcan Skin Off Import 1kg",
-    desc: "Samcan import tanpa kulit. Cocok untuk customer yang mau lebih banyak daging dan lemak tanpa kulit.",
-    price: "159rb",
-    unit: "/ 1 kg",
-    emoji: "🥩",
-    query: "Samcan Babi Pork Belly IMPORT without Skin Skin Off 1kg",
-    variantId: "gid://shopify/ProductVariant/48497412243610"
-  },
-  {
-    id: "samcan-slice-korean-bbq-500g",
-    name: "Samcan Slice Korean BBQ 500g",
-    desc: "Slice tipis untuk Korean BBQ. Cepat matang dan cocok untuk grill rumahan.",
-    price: "68rb",
-    unit: "/ 500 g",
     emoji: "🔥",
-    query: "Pork Belly Slice SamGyeopSal Korean Bbq Samcan Babi Iris tipis 500gram",
-    variantId: "gid://shopify/ProductVariant/48497419157658"
-  },
-  {
-    id: "samgyeopsal-import-tipis-500g",
-    name: "Samgyeopsal Import Tipis 500g",
-    desc: "Slice import tipis 2mm. Cocok untuk BBQ cepat, hotplate, dan shabu.",
-    price: "86rb",
-    unit: "/ 500 g",
-    emoji: "🔥",
-    query: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TIPIS 2mm 500gr",
-    variantId: "gid://shopify/ProductVariant/48497413292186"
-  },
-  {
-    id: "samgyeopsal-import-tebal-500g",
-    name: "Samgyeopsal Import Tebal 500g",
-    desc: "Slice import tebal 8–10mm. Cocok untuk BBQ premium dengan tekstur lebih juicy.",
-    price: "86rb",
-    unit: "/ 500 g",
-    emoji: "🔥",
-    query: "SAMGYEOPSAL IMPORT Samcan Pork Belly Import Slice TEBAL 8-10mm 500gr",
-    variantId: "gid://shopify/ProductVariant/48497411063962"
-  },
-  {
-    id: "samcan-babi-kecap-500g",
-    name: "Samcan Babi Kecap 500g",
-    desc: "Samcan potong dadu. Praktis untuk babi kecap, tumisan, dan masakan rumahan.",
-    price: "72.5rb",
-    unit: "/ 500 g",
-    emoji: "🍲",
-    query: "Daging Babi Samcan Pork Belly Potong Dadu Babi Kecap 500gr",
-    variantId: "gid://shopify/ProductVariant/48497412669594"
+    query: "Samcan Import 1kg",
+    variantId: "gid://shopify/ProductVariant/48497412604058",
+    availableForSale: true
   }
 ];
 let curProd=0,cartCount=0,isLoading=false,cartItems=[],cartLines=[],latestCheckoutUrl="";
@@ -603,6 +625,77 @@ let likeVal=2347,chipsVisible=false;
 const LEAD_STORAGE_KEY = "pakcivoLeadV1";
 const CART_STORAGE_KEY = "pakcivoCartV2";
 let currentLead = null;
+let PUBLIC_CONFIG = { captchaEnabled:false, turnstileSiteKey:"", clarityProjectId:"" };
+let turnstileToken = "";
+let turnstileWidgetId = null;
+let toastTimer = null;
+
+function showToast(message, type){
+  const el=document.getElementById("toast");
+  if(!el) return;
+  el.textContent=String(message||"");
+  el.dataset.type=type||"info";
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("show"), 3200);
+}
+
+function trackEvent(name, data){
+  try{
+    const payload={event:"pakcivo_"+name, appVersion:APP_VERSION, ts:new Date().toISOString(), ...(data||{})};
+    window.dataLayer=window.dataLayer||[];
+    window.dataLayer.push(payload);
+    if(window.clarity) window.clarity("event", payload.event);
+    console.log("[PakCivo event]", payload);
+  }catch(e){}
+}
+
+function loadScript(src, id){
+  return new Promise((resolve,reject)=>{
+    if(id && document.getElementById(id)) return resolve();
+    const s=document.createElement("script");
+    if(id) s.id=id;
+    s.src=src;
+    s.async=true;
+    s.defer=true;
+    s.onload=resolve;
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function loadPublicConfig(){
+  try{
+    const res=await fetch("/api/config",{cache:"no-store"});
+    if(!res.ok) return;
+    const cfg=await res.json();
+    PUBLIC_CONFIG={...PUBLIC_CONFIG,...cfg};
+    if(cfg.clarityProjectId){
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", cfg.clarityProjectId);
+    }
+    if(cfg.captchaEnabled && cfg.turnstileSiteKey){
+      const box=document.getElementById("turnstileBox");
+      if(box){
+        box.classList.add("active");
+        await loadScript("https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit", "cf-turnstile-js");
+        if(window.turnstile && turnstileWidgetId===null){
+          turnstileWidgetId=window.turnstile.render(box, {
+            sitekey: cfg.turnstileSiteKey,
+            callback: token => { turnstileToken=token || ""; },
+            "expired-callback": () => { turnstileToken=""; },
+            "error-callback": () => { turnstileToken=""; }
+          });
+        }
+      }
+    }
+  }catch(e){
+    console.warn("Public config skipped", e);
+  }
+}
 
 function safeJSONParse(value){
   try { return JSON.parse(value); } catch(e) { return null; }
@@ -644,6 +737,7 @@ function setLeadReady(lead, opts){
   }
   try { localStorage.setItem(LEAD_STORAGE_KEY, JSON.stringify(currentLead)); } catch(e) {}
   hideLeadGate();
+  trackEvent("lead_ready", {softUnsynced: !!(opts && opts.softUnsynced)});
 
   const firstName=currentLead.name.split(/\s+/)[0] || "Kak";
   const greeting=`Halo ${firstName}! Saya Pak Civo. Mau cari samcan, ribs, bacon, Korean BBQ, atau daging untuk masakan tertentu?`;
@@ -708,7 +802,8 @@ async function submitLeadForm(e){
       body:JSON.stringify({
         name,
         whatsapp,
-        source:"tokopakcivo-frontend"
+        source:"tokopakcivo-frontend",
+        turnstileToken: turnstileToken || ""
       })
     });
     const data=await res.json();
@@ -721,9 +816,16 @@ async function submitLeadForm(e){
       whatsapp:data?.lead?.whatsapp || whatsapp
     });
   }catch(error){
-    if(err){
-      err.textContent=error.message || "Terjadi gangguan saat menyimpan data.";
-      err.style.display="block";
+    const msg=String(error?.message || "Terjadi gangguan saat menyimpan data.");
+    if(/captcha|turnstile/i.test(msg)){
+      if(err){ err.textContent=msg; err.style.display="block"; }
+      try{ if(window.turnstile && turnstileWidgetId!==null) window.turnstile.reset(turnstileWidgetId); }catch(e){}
+      turnstileToken="";
+    }else{
+      // Conversion-safe fallback: do not block the shopper if Shopify lead API is temporarily down.
+      setLeadReady({name, whatsapp}, {softUnsynced:true});
+      showToast("Data WhatsApp tersimpan di browser. Shopify lead akan tersinkron saat server normal.", "warning");
+      trackEvent("lead_soft_fallback", {reason:msg.slice(0,120)});
     }
   }finally{
     btn.disabled=false;
@@ -748,13 +850,146 @@ refreshProductStrip();
 setProduct(0);
 hydrateProductsFromShopify();
 
+function shortProductLabel(name){
+  const clean=String(name||"Produk").replace(/\s+/g," ").trim();
+  return clean.length>18 ? clean.slice(0,17).trim()+"…" : clean;
+}
+function cleanProductName(title){
+  return String(title||"Produk")
+    .replace(/\b(daging\s+)?babi\b/gi, "")
+    .replace(/\bpork\b/gi, "")
+    .replace(/\bfrozen\b/gi, "")
+    .replace(/\bvacuum\s*pack\b/gi, "")
+    .replace(/\s{2,}/g," ")
+    .replace(/^[-–|\s]+|[-–|\s]+$/g, "")
+    .trim() || String(title||"Produk");
+}
+function inferUnitFromTitle(title, variantTitle){
+  const t=String(title||"")+" "+String(variantTitle||"");
+  const m=t.match(/(?:^|\b)(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram|ml|l)\b/i);
+  if(!m) return "";
+  const num=String(m[1]).replace(",", ".");
+  const unit=m[2].toLowerCase().replace("kilogram","kg").replace("gram","g").replace("gr","g");
+  return "/ "+num+" "+unit;
+}
+function emojiForProduct(text){
+  const t=String(text||"").toLowerCase();
+  if(/bacon|smoked|asap/.test(t)) return "🥓";
+  if(/rib|ribs|iga|paikut|bakut/.test(t)) return "🍖";
+  if(/slice|samgyeopsal|bbq|korean|shabu/.test(t)) return "🔥";
+  if(/giling|ground|minced/.test(t)) return "🥩";
+  if(/kecap|dadu|stew|sup|sop/.test(t)) return "🍲";
+  if(/ayam|chicken/.test(t)) return "🍗";
+  if(/seafood|ikan|udang/.test(t)) return "🦐";
+  return "🥩";
+}
+function productFromShopifyProduct(prod){
+  const variants=Array.isArray(prod?.variants)?prod.variants:[];
+  const variant=variants.find(v=>v && v.availableForSale!==false && v.id) || variants.find(v=>v && v.id) || null;
+  if(!prod || !variant || !variant.id) return null;
+  const name=cleanProductName(prod.title);
+  return {
+    id: prod.handle || prod.id || variant.id,
+    name,
+    desc: prod.description || "",
+    price: formatShopifyPriceToRb(variant.price) || "",
+    unit: inferUnitFromTitle(prod.title, variant.title),
+    emoji: emojiForProduct(`${prod.title||""} ${prod.productType||""}`),
+    query: prod.title || name,
+    variantId: variant.id,
+    image: prod.image || null,
+    availableForSale: variant.availableForSale!==false
+  };
+}
+function bestSellerRankFromShopifyProduct(prod){
+  const variants=Array.isArray(prod?.variants)?prod.variants:[];
+  const hay=[
+    prod?.title,
+    prod?.handle,
+    prod?.description,
+    Array.isArray(prod?.tags)?prod.tags.join(" "):"",
+    prod?.productType,
+    variants.map(v=>v?.title||"").join(" ")
+  ].join(" ").toLowerCase().replace(/[_-]+/g," ");
+
+  const has=(re)=>re.test(hay);
+  const isSliceOrSkinOff=has(/slice|samgyeopsal|samgyeop|skin\s*off|without\s*skin|tanpa\s*kulit|tipis|tebal/);
+
+  if(has(/samcan|pork\s*belly|wuhua/) && has(/lokal|local/)) return 0;
+  if(has(/babi\s*giling|giling\s*babi|ground|minced|mince/)) return 1;
+  if(has(/paikut|bakut|bak kut|ribs?|iga/) && !has(/bbq|barbeque|grill|import/)) return 2;
+  if(has(/kapsim|shoulder|kasim/)) return 3;
+  if(has(/samcan|pork\s*belly|wuhua/) && has(/import|impor/) && !isSliceOrSkinOff) return 4;
+  return -1;
+}
+function bestSellerCandidateScore(prod, mapped, rank){
+  const title=String(prod?.title||mapped?.name||"").toLowerCase();
+  let score=0;
+  if(mapped?.availableForSale!==false) score+=20;
+  if(/1\s*kg|1000\s*g|1000\s*gr/.test(title)) score+=6;
+  if(/500\s*g|500\s*gr/.test(title)) score+=6;
+  if(rank===0 && /lokal|local/.test(title)) score+=10;
+  if(rank===1 && /giling|ground|minced|mince/.test(title)) score+=10;
+  if(rank===2 && /paikut|bakut|bak kut/.test(title)) score+=10;
+  if(rank===3 && /kapsim|shoulder|kasim/.test(title)) score+=10;
+  if(rank===4 && /import|impor/.test(title)) score+=10;
+  if(/slice|samgyeopsal|skin\s*off|without\s*skin|tipis|tebal/.test(title)) score-=15;
+  return score;
+}
+function mergeBestSellerProduct(base, mapped){
+  return {
+    ...base,
+    // Keep the showroom label locked to the 5 best sellers requested by owner.
+    price: mapped.price || base.price,
+    unit: mapped.unit || base.unit,
+    variantId: mapped.variantId || base.variantId,
+    image: mapped.image || base.image || null,
+    availableForSale: mapped.availableForSale!==false,
+    query: mapped.query || base.query,
+    shopifyName: mapped.name || base.shopifyName || ""
+  };
+}
+function applyShopifyProducts(products, opts){
+  const slots=new Array(PRODUCTS.length).fill(null);
+  (Array.isArray(products)?products:[]).forEach((raw)=>{
+    const rank=bestSellerRankFromShopifyProduct(raw);
+    if(rank<0 || rank>=PRODUCTS.length) return;
+    const mapped=productFromShopifyProduct(raw);
+    if(!mapped) return;
+    const score=bestSellerCandidateScore(raw, mapped, rank);
+    if(!slots[rank] || score>slots[rank].score){
+      slots[rank]={mapped, score};
+    }
+  });
+
+  const foundCount=slots.filter(Boolean).length;
+  if(!foundCount) return false;
+
+  const next=PRODUCTS.map((base,i)=>slots[i] ? mergeBestSellerProduct(base, slots[i].mapped) : base);
+  PRODUCTS.splice(0, PRODUCTS.length, ...next);
+  curProd = opts && opts.preferFirst ? 0 : Math.min(curProd, PRODUCTS.length-1);
+  refreshProductStrip();
+  setProduct(curProd);
+  trackEvent("products_loaded", {count:foundCount, shown:PRODUCTS.length, source:opts?.source||"shopify_best_sellers"});
+  return true;
+}
+
 function setProduct(idx){
-  curProd=idx;const p=PRODUCTS[idx];
-  document.getElementById("pcEmoji").textContent=p.emoji;
-  document.getElementById("pcName").textContent=p.name;
-  document.getElementById("pcPrice").textContent=p.price;
-  document.getElementById("pcUnit").textContent=p.unit;
-  document.querySelectorAll(".ps-chip").forEach((c,i)=>c.classList.toggle("active",i===idx));
+  if(!PRODUCTS.length) return;
+  curProd=Math.max(0, Math.min(Number(idx)||0, PRODUCTS.length-1));
+  const p=PRODUCTS[curProd];
+  document.getElementById("pcEmoji").textContent=p.emoji || "🥩";
+  document.getElementById("pcName").textContent=p.name || "Produk CIVO MEAT";
+  document.getElementById("pcPrice").textContent=p.price || "Cek harga";
+  document.getElementById("pcUnit").textContent=p.unit || "";
+  const btn=document.getElementById("addCartBtn");
+  if(btn){
+    const disabled=!p.variantId || p.availableForSale===false;
+    btn.disabled=disabled;
+    btn.textContent=disabled ? "Stok habis" : "+ Keranjang";
+  }
+  document.querySelectorAll(".ps-chip").forEach((c,i)=>c.classList.toggle("active",i===curProd));
+  trackEvent("product_selected", {name:p.name, index:curProd});
 }
 
 function updateCartCount(count){
@@ -777,34 +1012,35 @@ function refreshProductStrip(){
   if(!ps) return;
   ps.innerHTML="";
   PRODUCTS.forEach((p,i)=>{
-    const el=document.createElement("div");
+    const el=document.createElement("button");
+    el.type="button";
     el.className="ps-chip"+(i===curProd?" active":"");
-    el.innerHTML=`<span class="ps-e">${p.emoji}</span><span class="ps-n">${escapeHtml(p.name.split(" ")[0])}</span><span class="ps-p">${escapeHtml(p.price)}</span>`;
+    el.innerHTML=`<span class="ps-e">${escapeHtml(p.emoji||"🥩")}</span><span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-p">${escapeHtml(p.price||"")}</span>`;
     el.onclick=()=>setProduct(i);
     ps.appendChild(el);
   });
 }
 
 async function hydrateProductsFromShopify(){
-  // Keep variant IDs fixed for reliable checkout, but refresh visible title/price from Shopify.
   try{
-    const res=await fetch("/api/shopify-products?q=samcan",{cache:"no-store"});
-    const data=await res.json();
-    if(!data.ok || !Array.isArray(data.products)) return;
-    const byVariant=new Map();
-    data.products.forEach(prod=>{
-      (prod.variants||[]).forEach(v=>{ if(v && v.id) byVariant.set(v.id,{prod,v}); });
-    });
-    PRODUCTS.forEach(p=>{
-      const found=byVariant.get(p.variantId);
-      if(!found) return;
-      const price=formatShopifyPriceToRb(found.v.price);
-      if(price) p.price=price;
-      p.shopifyTitle=found.prod.title;
-      p.availableForSale=found.v.availableForSale!==false;
-    });
-    refreshProductStrip();
-    setProduct(curProd);
+    const all=[];
+    const queries=[...new Set(PRODUCTS.map(p=>p.query).filter(Boolean))];
+    for(const q of queries){
+      try{
+        const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q),{cache:"no-store"});
+        if(!res.ok) continue;
+        const data=await res.json();
+        if(data.ok && Array.isArray(data.products)) all.push(...data.products);
+      }catch(e){
+        console.warn("Best seller product query skipped", q, e);
+      }
+    }
+    if(!all.length){
+      const res=await fetch("/api/shopify-products",{cache:"no-store"});
+      const data=await res.json();
+      if(data.ok && Array.isArray(data.products)) all.push(...data.products);
+    }
+    applyShopifyProducts(all,{preferFirst:true,source:"best_seller_catalog"});
   }catch(e){
     console.warn("Shopify product hydration skipped", e);
   }
@@ -1126,12 +1362,13 @@ async function send(){
   rb.style.display="block";
   try{playQuickAckIfReady();}catch(e){}
   messages.push({role:"user",content:text});
+  trackEvent("chat_send", {length:text.length});
   isLoading=true;
 
   try{
     const cc=cartItems.length?"[CART: "+cartItems.join(", ")+"]":"[CART KOSONG]";
     const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:messages.slice(-8),cartContext:cc,lead:currentLead})});
-    if(!res.ok)throw new Error();
+    if(!res.ok)throw new Error("Chat API HTTP "+res.status);
     const data=await res.json();
     const reply=data.reply||"Maaf Kak, coba lagi ya!";
     const checkoutUrl=data.checkoutUrl||data?.cart?.checkoutUrl||"";
@@ -1143,14 +1380,14 @@ async function send(){
     pcTextEl.innerHTML = canVoiceSync ? '<span class="voice-wait">Pak Civo menyiapkan jawaban suara</span>' : html;
     pcTextEl.parentNode.scrollTop=pcTextEl.parentNode.scrollHeight;
 
+    // Keep the live page showroom locked to the 5 best-selling products.
+    // AI can still answer/search other Shopify products in chat, but the visible strip stays focused.
     const t=reply.toLowerCase();
-    if(t.includes("tebal")||t.includes("8-10mm"))setProduct(6);
-    else if(t.includes("tipis")||t.includes("2mm")||t.includes("korean")||t.includes("samgyeopsal"))setProduct(4);
-    else if(t.includes("skin off")||t.includes("tanpa kulit"))setProduct(3);
-    else if(t.includes("import"))setProduct(2);
-    else if(t.includes("babi kecap")||t.includes("potong dadu"))setProduct(7);
-    else if(t.includes("babi hong")||t.includes("sio bak")||t.includes("kulit"))setProduct(1);
-    else if(t.includes("samcan")||t.includes("pork belly"))setProduct(0);
+    const idx=PRODUCTS.findIndex(p=>{
+      const parts=String(p.name||"").toLowerCase().split(/\s+/).filter(Boolean);
+      return parts.some(part=>part.length>=5 && t.includes(part));
+    });
+    if(idx>=0) setProduct(idx);
 
     var cm=null;
     var cartIdx=reply.indexOf("<<CART:ADD:");
@@ -1186,6 +1423,7 @@ async function send(){
       }
     });
   }catch(e){
+    trackEvent("chat_error", {message:String(e?.message||e).slice(0,120)});
     document.getElementById("pcText").innerHTML="Maaf Kak, ada gangguan 🙏";
     setTalking(false);
     setTimeout(()=>document.getElementById("pcReply").style.display="none",3000);
@@ -1303,7 +1541,7 @@ async function addToCart(e){
   if(isLoading)return;
   const p=PRODUCTS[curProd];
   if(!p || !p.variantId){
-    alert("Variant ID produk belum tersedia.");
+    showToast("Variant ID produk belum tersedia.", "error");
     return;
   }
 
@@ -1322,6 +1560,7 @@ async function addToCart(e){
     const result=await createCheckoutForCartLines(nextLines);
     latestCheckoutUrl=result.checkoutUrl;
     syncCartState(nextLines);
+    trackEvent("add_to_cart", {name:p.name, quantity:getCartQuantity(nextLines), checkoutMode:result.mode});
 
     const rb=document.getElementById("pcReply");
     const pcTextEl=document.getElementById("pcText");
@@ -1344,7 +1583,7 @@ async function addToCart(e){
       pcTextEl.innerHTML=`Maaf Kak, keranjang Shopify belum berhasil dibuat.<br><br><b>Error:</b> ${escapeHtml(error.message || "Unknown error")}<br><br>Silakan coba lagi atau hubungi admin.`;
       rb.style.display="block";
     }else{
-      alert("Checkout gagal: "+(error.message || "Unknown error"));
+      showToast("Checkout gagal: "+(error.message || "Unknown error"), "error");
     }
   }finally{
     btn.disabled=false;
@@ -1356,6 +1595,7 @@ window.showCart = showCart;
 
 async function showCart(){
   if(latestCheckoutUrl){
+    trackEvent("checkout_opened", {source:"cart_button_cached"});
     window.open(latestCheckoutUrl,"_blank","noopener");
     return;
   }
@@ -1364,14 +1604,15 @@ async function showCart(){
       const result=await createCheckoutForCartLines(cartLines);
       latestCheckoutUrl=result.checkoutUrl;
       saveCartState();
+      trackEvent("checkout_opened", {source:"cart_button_created"});
       window.open(latestCheckoutUrl,"_blank","noopener");
       return;
     }catch(error){
-      alert("Checkout gagal: "+(error.message||"Unknown error"));
+      showToast("Checkout gagal: "+(error.message||"Unknown error"), "error");
       return;
     }
   }
-  alert("Keranjang masih kosong. Pilih produk lalu klik + Keranjang.");
+  showToast("Keranjang masih kosong. Pilih produk lalu klik + Keranjang.", "info");
 }
 function shareWA(){
   const p=PRODUCTS[curProd];
@@ -1401,6 +1642,7 @@ setInterval(()=>{
   const v=78+Math.floor(Math.random()*102);
   document.getElementById("viewerCount").textContent=v.toLocaleString("id");
 },8000);
+loadPublicConfig();
 initLeadGate();
 loadCartState();
 
@@ -1464,31 +1706,6 @@ loadCartState();
   });
 })();
 </script>
-<style>@keyframes ptrSpin{to{transform:rotate(360deg);}}
-.voice-wait {
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  color:rgba(242,237,228,.82);
-  font-weight:800;
-}
-.voice-wait::after {
-  content:"";
-  width:7px;
-  height:7px;
-  border-radius:999px;
-  background:var(--copper);
-  box-shadow:12px 0 0 rgba(200,133,74,.55),24px 0 0 rgba(200,133,74,.25);
-  animation:voicePulse 1s infinite ease-in-out;
-}
-.voice-live-text {
-  white-space:normal;
-}
-@keyframes voicePulse {
-  0%,100% { opacity:.45; transform:translateY(0); }
-  50% { opacity:1; transform:translateY(-1px); }
-}
-
-</style>
+<style>@keyframes ptrSpin{to{transform:rotate(360deg);}}</style>
 </body>
 </html>
