@@ -487,7 +487,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v2.4.0-stable-cart-quantity-checkout";
+const APP_VERSION = "v2.5.1-fast-voice-responsive-chat-audited";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -781,67 +781,84 @@ function setTalking(on){
   document.getElementById("stage").classList.toggle("talking",on);
 }
 
-// ── TTS ──
-let currentAudio=null,_actx=null;
+// ── TTS: fast, non-blocking, no fake talking before audio is ready ──
+let currentAudio=null,_actx=null,currentTtsController=null;
 const ttsCache=new Map();
 function getCtx(){if(!_actx||_actx.state==="closed")_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}
-function typewriterEffect(el, html){
-  // Strip HTML tags for char-by-char, then re-apply bold
-  const plain = html.replace(/<strong>/g,'').replace(/<\/strong>/g,'');
-  // Build char array with bold markers
-  const parts = html.split(/(<strong>|<[/]strong>)/);
-  let chars = [];
-  let isBold = false;
-  for(const part of parts){
-    if(part==='<strong>'){isBold=true;continue;}
-    if(part==='</strong>'){isBold=false;continue;}
-    for(const ch of part){
-      chars.push({ch, bold:isBold});
-    }
+function stopVoice(){
+  try{ if(currentTtsController) currentTtsController.abort(); }catch(e){}
+  currentTtsController=null;
+  if(currentAudio){
+    try{currentAudio.pause(); currentAudio.src="";}catch(e){}
+    currentAudio=null;
   }
-  el.innerHTML='';
-  let i=0;
-  // Speed: ~40ms per char (adjust to match TTS speed)
-  const totalChars = chars.length;
-  function next(){
-    if(i>=chars.length) return;
-    const {ch, bold} = chars[i];
-    const span = document.createElement('span');
-    span.textContent = ch;
-    if(bold) span.style.fontWeight='900';
-    if(bold) span.style.color='var(--copper)';
-    el.appendChild(span);
-    // Auto scroll
-    el.parentNode.scrollTop = el.parentNode.scrollHeight;
-    i++;
-    setTimeout(next, 38);
-  }
-  next();
+  setTalking(false);
 }
-
-
+function typewriterEffect(el, html){
+  // Kept for compatibility; current UX renders text instantly for better responsiveness.
+  el.innerHTML=html;
+}
+function extractPlainTextFromHtml(html){
+  const d=document.createElement("div");
+  d.innerHTML=String(html||"");
+  return (d.textContent||"").replace(/\s+/g," ").trim();
+}
 function shortenForVoice(text){
-  const cleaned=String(text||"").replace(/\s+/g," ").trim();
+  let cleaned=String(text||"")
+    .replace(/https?:\/\/\S+/gi," ")
+    .replace(/Checkout Sekarang/gi," ")
+    .replace(/Total item:\s*\d+/gi," ")
+    .replace(/\s+/g," ")
+    .trim();
   if(!cleaned) return "";
   const sentences=cleaned.match(/[^.!?]+[.!?]?/g)||[cleaned];
-  return sentences.slice(0,2).join(" ").trim().slice(0,280);
+  let picked=sentences.slice(0,1).join(" ").trim();
+  if(picked.length<42 && sentences[1]) picked=(picked+" "+sentences[1]).trim();
+  return picked.slice(0,150);
+}
+function shouldSkipVoice(text){
+  const lower=String(text||"").toLowerCase();
+  if(!lower) return true;
+  if(lower.includes("checkout") && lower.includes("keranjang sudah")) return true;
+  if(lower.includes("error:")) return true;
+  return false;
 }
 async function speak(html, onDone){
-  const d=document.createElement("div");d.innerHTML=html;
-  const text=shortenForVoice((d.textContent||"").trim());
-  if(!text){if(onDone)onDone();return;}
-  const key=text.slice(0,80);
-  setTalking(true);
+  const text=shortenForVoice(extractPlainTextFromHtml(html));
+  if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,900); return; }
+  const key=text.toLowerCase();
   try{
-    if(ttsCache.has(key)){playAudio(new Audio(ttsCache.get(key)),onDone);return;}
-    const res=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
-    if(!res.ok){setTalking(false);if(onDone)onDone();return;}
+    if(ttsCache.has(key)){
+      playAudio(new Audio(ttsCache.get(key)),onDone);
+      return;
+    }
+    if(currentTtsController) currentTtsController.abort();
+    currentTtsController=new AbortController();
+    const timeout=setTimeout(()=>{try{currentTtsController.abort();}catch(e){}},6500);
+    const res=await fetch("/api/tts",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text,mode:"fast",clientVersion:APP_VERSION}),
+      signal:currentTtsController.signal
+    });
+    clearTimeout(timeout);
+    currentTtsController=null;
+    if(!res.ok){ if(onDone) setTimeout(onDone,900); return; }
     const blob=await res.blob();
-    if(!blob.size){setTalking(false);if(onDone)onDone();return;}
+    if(!blob.size){ if(onDone) setTimeout(onDone,900); return; }
     const url=URL.createObjectURL(blob);
+    if(ttsCache.size>20){
+      const firstKey=ttsCache.keys().next().value;
+      try{URL.revokeObjectURL(ttsCache.get(firstKey));}catch(e){}
+      ttsCache.delete(firstKey);
+    }
     ttsCache.set(key,url);
     playAudio(new Audio(url),onDone);
-  }catch(e){setTalking(false);if(onDone)onDone();}
+  }catch(e){
+    currentTtsController=null;
+    setTalking(false);
+    if(onDone) setTimeout(onDone,900);
+  }
 }
 function playAudio(audio, onDone){
   if(!audio){if(onDone)onDone();return;}
@@ -849,12 +866,20 @@ function playAudio(audio, onDone){
   currentAudio=audio;
   audio.preload="auto";
   audio.volume=1.0;
-  const tryPlay=()=>{
-    audio.play().catch(e=>{setTalking(false);if(onDone)onDone();});
+  const finish=()=>{
+    if(currentAudio===audio) currentAudio=null;
+    setTalking(false);
+    if(onDone)onDone();
   };
+  const tryPlay=()=>{
+    audio.play()
+      .then(()=>setTalking(true))
+      .catch(e=>{setTalking(false);if(onDone)onDone();});
+  };
+  audio.onplaying=()=>setTalking(true);
+  audio.onended=finish;
+  audio.onerror=finish;
   try{getCtx().resume().then(tryPlay).catch(tryPlay);}catch(e){tryPlay();}
-  audio.onended=()=>{currentAudio=null;setTalking(false);if(onDone)onDone();};
-  audio.onerror=()=>{currentAudio=null;setTalking(false);if(onDone)onDone();};
 }
 ["touchstart","click"].forEach(ev=>document.addEventListener(ev,()=>{
   try{getCtx().resume();}catch(e){}
@@ -922,6 +947,7 @@ function fmt(t, extraCheckoutUrl){
 async function send(){
   if(isLoading)return;
   if(!ensureLeadReady())return;
+  stopVoice();
   try{getCtx().resume();}catch(e){}
   const inp=document.getElementById("msgInput");
   const text=inp.value.trim();if(!text)return;
@@ -1142,7 +1168,7 @@ async function addToCart(e){
     pcTextEl.innerHTML=html;
     rb.style.display="block";
     messages.push({role:"assistant",content:`Checkout dibuat/update. Total item ${totalQty}: ${result.checkoutUrl}`});
-    speak(html);
+    speak("Keranjang sudah saya update, Kak. Silakan checkout kalau sudah lengkap.");
   }catch(error){
     console.error("Add to cart failed:", error);
     latestCheckoutUrl="";
@@ -1203,6 +1229,7 @@ function doLike(e){
     },i*150);
   }
 }
+console.log("Tokopakcivo", APP_VERSION);
 document.getElementById("msgInput").addEventListener("keydown",e=>{if(e.key==="Enter")send();});
 document.getElementById("msgInput").addEventListener("focus",()=>{ if(!ensureLeadReady())return; toggleChips(true); });
 setInterval(()=>{
