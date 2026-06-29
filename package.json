@@ -1,8 +1,8 @@
 {
   "name": "pakcivo-live",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "private": true,
-  "description": "CIVO MEAT — Pak Civo AI Butcher (test live tanpa Shopify)",
+  "description": "CIVO MEAT — Pak Civo AI Butcher production cleanup",
   "engines": {
     "node": "20.x"
   }
