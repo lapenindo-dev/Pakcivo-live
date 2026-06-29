@@ -1,4 +1,10 @@
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).json({ ok: true });
+  if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
   try {
     const shop = process.env.SHOPIFY_STORE_DOMAIN;
     const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
@@ -39,7 +45,6 @@ module.exports = async function handler(req, res) {
                   node {
                     id
                     title
-                    sku
                     availableForSale
                     price {
                       amount
@@ -95,7 +100,6 @@ module.exports = async function handler(req, res) {
           return {
             id: variant.id,
             title: variant.title,
-            sku: variant.sku,
             availableForSale: variant.availableForSale,
             price: Number(variant.price.amount),
             currencyCode: variant.price.currencyCode

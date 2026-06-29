@@ -81,7 +81,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/rn-image_picker_lib_temp_97c57387-c29b-42ee-b35f-5aef1a5b05d0.jpg?v=1781663022",
-    variants: [{ id: "gid://shopify/ProductVariant/48252265136282", title: "Default Title", sku: null, availableForSale: true, price: 122000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48252265136282", title: "Default Title", availableForSale: true, price: 122000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000013562010",
@@ -91,7 +91,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/SAMCANON1kg.png?v=1782372160",
-    variants: [{ id: "gid://shopify/ProductVariant/48497419419802", title: "Default Title", sku: "Belly1kg", availableForSale: true, price: 139000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497419419802", title: "Default Title", availableForSale: true, price: 139000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000009859226",
@@ -101,7 +101,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/SAMCAN1kg.png?v=1782372745",
-    variants: [{ id: "gid://shopify/ProductVariant/48497412604058", title: "Default Title", sku: "SamcanImport1kg", availableForSale: true, price: 152000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497412604058", title: "Default Title", availableForSale: true, price: 152000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000009498778",
@@ -111,7 +111,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: null,
-    variants: [{ id: "gid://shopify/ProductVariant/48497412243610", title: "Default Title", sku: "SkinOffImport1kg", availableForSale: true, price: 159000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497412243610", title: "Default Title", availableForSale: true, price: 159000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000013299866",
@@ -121,7 +121,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: null,
-    variants: [{ id: "gid://shopify/ProductVariant/48497419157658", title: "Default Title", sku: "bellyslice500g", availableForSale: true, price: 68000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497419157658", title: "Default Title", availableForSale: true, price: 68000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000010547354",
@@ -131,7 +131,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: null,
-    variants: [{ id: "gid://shopify/ProductVariant/48497413292186", title: "Default Title", sku: "SamcanSliceImport500g", availableForSale: true, price: 86000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497413292186", title: "Default Title", availableForSale: true, price: 86000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000008974490",
@@ -141,7 +141,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: null,
-    variants: [{ id: "gid://shopify/ProductVariant/48497411063962", title: "Default Title", sku: "SamgyeopsalTebal500g", availableForSale: true, price: 86000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497411063962", title: "Default Title", availableForSale: true, price: 86000, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/9000009957530",
@@ -151,7 +151,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "",
     image: null,
-    variants: [{ id: "gid://shopify/ProductVariant/48497412669594", title: "Default Title", sku: "SamcanBabiKecap500g", availableForSale: true, price: 72500, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48497412669594", title: "Default Title", availableForSale: true, price: 72500, currencyCode: "IDR" }],
   },
   {
     id: "gid://shopify/Product/8999675855002",
@@ -161,7 +161,7 @@ const SHOPIFY_FALLBACK_PRODUCTS = [
     tags: [],
     productType: "Baso & Daging Olahan Lainnya",
     image: "https://cdn.shopify.com/s/files/1/0755/6287/7082/files/8dfd479d-64c8-4187-a0de-2eea472e518f.jpg?v=1782185272",
-    variants: [{ id: "gid://shopify/ProductVariant/48496503423130", title: "Default Title", sku: "Bacon500g", availableForSale: true, price: 60000, currencyCode: "IDR" }],
+    variants: [{ id: "gid://shopify/ProductVariant/48496503423130", title: "Default Title", availableForSale: true, price: 60000, currencyCode: "IDR" }],
   },
 ];
 
@@ -380,7 +380,6 @@ async function searchShopifyProducts(rawQuery) {
                 node {
                   id
                   title
-                  sku
                   availableForSale
                   price {
                     amount
@@ -413,7 +412,6 @@ async function searchShopifyProducts(rawQuery) {
         return {
           id: variant.id,
           title: variant.title,
-          sku: variant.sku || null,
           availableForSale: !!variant.availableForSale,
           price: Number(variant.price.amount),
           currencyCode: variant.price.currencyCode,
@@ -512,7 +510,6 @@ function buildProductContext(products) {
             `namaVarian=${variant.title}`,
             `harga=${formatRupiahShort(variant.price)} (${variant.price} ${variant.currencyCode})`,
             `availableForSale=${variant.availableForSale}`,
-            variant.sku ? `sku=${variant.sku}` : "sku=-",
           ].join(" | ");
         })
         .join("\n    ");
@@ -845,6 +842,7 @@ async function processShopifyCartCommands(reply) {
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "no-store");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -943,10 +941,18 @@ module.exports = async function handler(req, res) {
       checkoutUrl: processed.checkoutUrl,
       cart: processed.cart,
       productsUsed: products.map((product) => ({
+        id: product.id,
         title: product.title,
+        handle: product.handle,
+        description: product.description || "",
+        productType: product.productType || "",
+        tags: product.tags || [],
+        image: product.image || null,
         variants: product.variants.map((variant) => ({
           id: variant.id,
+          title: variant.title,
           price: variant.price,
+          currencyCode: variant.currencyCode,
           availableForSale: variant.availableForSale,
         })),
       })),

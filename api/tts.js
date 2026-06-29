@@ -243,7 +243,8 @@ function normalizeForSpeech(text) {
     return `${numberToWords(parseInt(n, 10))} juta`;
   });
 
-  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m|miliar|milyar)\b/gi, (_, n) => {
+  // Money shorthand: only uppercase M or explicit miliar/milyar is treated as miliar. Lowercase m is meter.
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(?:M|miliar|milyar)\b/g, (_, n) => {
     return `${decimalToWords(n)} miliar`;
   });
 
@@ -259,6 +260,7 @@ function normalizeForSpeech(text) {
   });
 
   t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*(m2|m²)\b/gi, (_, n) => `${decimalToWords(n)} meter persegi`);
+  t = t.replace(/\b(\d+(?:[.,]\d+)?)\s*m\b/g, (_, n) => `${decimalToWords(n)} meter`);
   t = t.replace(/\b(\d+)\s*pcs\b/gi, (_, n) => `${numberToWords(n)} pieces`);
   t = t.replace(/\b(\d+)\s*pc\b/gi, (_, n) => `${numberToWords(n)} piece`);
   t = t.replace(/\b(\d+)\s*pack\b/gi, (_, n) => `${numberToWords(n)} pak`);

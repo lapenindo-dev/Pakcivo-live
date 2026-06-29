@@ -13,10 +13,13 @@ function json(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+function setCors(req, res) {
+  const allowedOrigin = cleanString(process.env.ALLOWED_ORIGIN || process.env.PUBLIC_SITE_ORIGIN);
+  const origin = cleanString(req.headers.origin);
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin && origin === allowedOrigin ? origin : "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Cache-Control", "no-store");
 }
 
 function cleanString(value) {
@@ -94,6 +97,29 @@ async function readBody(req) {
   } catch (_) {
     return {};
   }
+}
+
+async function verifyTurnstileToken(token, req) {
+  const enabled = process.env.CAPTCHA_ENABLED === "true";
+  const secret = cleanString(process.env.TURNSTILE_SECRET_KEY);
+  if (!enabled) return { ok: true, skipped: true };
+  if (!secret) throw new Error("Captcha aktif tetapi TURNSTILE_SECRET_KEY belum dikonfigurasi.");
+  if (!token) return { ok: false, error: "Captcha belum valid. Coba centang/verifikasi ulang." };
+
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || "";
+  const body = new URLSearchParams({ secret, response: String(token) });
+  if (ip) body.set("remoteip", ip);
+
+  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    return { ok: false, error: "Captcha tidak valid. Coba ulangi verifikasi." };
+  }
+  return { ok: true };
 }
 
 async function getAdminAccessToken() {
@@ -305,7 +331,7 @@ async function createOrUpdateLeadCustomer({ name, whatsapp, source }) {
 }
 
 module.exports = async function handler(req, res) {
-  setCors(res);
+  setCors(req, res);
 
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true });
@@ -327,6 +353,11 @@ module.exports = async function handler(req, res) {
 
     if (!phone || !phone.startsWith("+62") || phone.length < 10) {
       return json(res, 400, { ok: false, error: "Nomor WhatsApp tidak valid. Gunakan format 08xx atau +62xx." });
+    }
+
+    const captcha = await verifyTurnstileToken(body.turnstileToken, req);
+    if (!captcha.ok) {
+      return json(res, 400, { ok: false, error: captcha.error || "Captcha tidak valid." });
     }
 
     const result = await createOrUpdateLeadCustomer({
