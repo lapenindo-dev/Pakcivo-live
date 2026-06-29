@@ -1,4 +1,4 @@
-# Tokopakcivo / Pak Civo Live v2.2.0 Production Cleanup
+# Tokopakcivo / Pak Civo Live v5.0.1 Production Cleanup
 
 Perbaikan utama:
 - `public/index.html` diringankan dengan memindahkan base64 image/video ke `public/assets/`.
@@ -27,3 +27,17 @@ Test cepat setelah deploy:
 4. Klik produk Samcan lalu `+ Keranjang`.
 5. Pastikan muncul tombol `Checkout Sekarang`.
 6. Test produk API: `/api/shopify-products?q=samcan`.
+
+
+## v5.0.1 Production Hardening
+- Dynamic Shopify catalog hydration from `/api/shopify-products`.
+- SKU removed from public product API response.
+- Lead gate conversion-safe fallback if Shopify Admin lead sync is temporarily down.
+- Optional Cloudflare Turnstile validation for lead capture.
+- TTS unit normalization fix: lowercase `m` is meter, explicit `M/miliar/milyar` is miliar.
+- Desktop frame layout, toast feedback, analytics-ready events, unified versioning.
+
+
+## v5.0.1 Best-Selling 5 Update
+
+Homepage Pak Civo Live product showroom is locked to 5 best sellers only: Samcan Lokal 1kg, Babi Giling 500g, Paikut Sop 500g, Kapsim 1kg, and Samcan Import 1kg. Shopify hydration updates price/variant ID for these five without adding other products to the visible strip.
