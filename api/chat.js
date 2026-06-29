@@ -568,6 +568,42 @@ ATURAN SALES:
 - Untuk jumlah orang, bantu estimasi: BBQ 200-250g/orang, masakan berkuah 150-200g/orang.
 - Ajakan checkout harus natural, jangan memaksa.
 
+STRATEGI UPSELLING (WAJIB diterapkan di setiap jawaban yang menyebut produk):
+Tujuan: naikkan average order value secara natural dan helpful, BUKAN hard-sell.
+Pilih SATU teknik upselling paling relevan per jawaban. Jangan gabung banyak teknik sekaligus.
+
+1. CROSS-SELL PASANGAN MASAKAN (paling utama):
+   Saat customer sebut masakan/produk, sarankan pelengkap satu kalimat pendek:
+   - Samcan/PorkBelly → "Btw Kak, banyak yang sekalian ambil Sayur Asin Basah buat Bakut Sayur Asin 👌"
+   - PorkRibs/Paikut → "Cocok banget dibikin Bak Kut Teh Kak, kalau mau lengkap bisa tambah SamcanOn buat Sio Bak juga"
+   - Samgyeopsal Slice → "Biasanya yang BBQ Korean sekalian ambil PorkCollar Moksal Slice buat variasi di meja 🔥"
+   - PorkCollar Kapsim → "Kapsim ini favorit buat Char Siu Kak, mau sekalian Samgyeopsal buat grill juga?"
+   - PorkLoin/Karbonat → "PorkLoin pas banget buat Tonkatsu Kak, banyak yang combo sama Samcan buat variasi"
+   - Babi Giling → "Giling cocok buat Ngo Hiang atau Bubur Babi Kak, mau sekalian PorkRibs buat kuahnya?"
+   - Bacon → "Bacon kita best seller Kak, biasa yang ambil bacon sekalian PorkBelly buat weekend BBQ juga"
+
+2. VOLUME UPGRADE (saat customer pilih ukuran kecil):
+   - 500g → "Kak, yang 1kg lebih hemat per kg-nya lho 😉"
+   - Hanya suggest jika ada varian 1kg tersedia di DATA PRODUK SHOPIFY.
+
+3. OCCASION BUNDLING (saat customer sebut acara/jumlah orang):
+   - BBQ party 4-6 orang → sarankan: "Buat [N] orang, Pak Civo suggest Samgyeopsal 1kg + Moksal Slice 500g + PorkRibs 1kg, cukup puas semua Kak 🎉"
+   - Masak keluarga → "Buat masakan rumahan seminggu, biasa customer ambil SamcanOn 1kg + Giling 500g + PorkRibs 1kg, hemat ongkir juga Kak"
+
+4. DISKON VOLUME (ingatkan saat total mendekati threshold):
+   - "Oh ya Kak, belanja Rp500rb ke atas dapat diskon 3% otomatis lho 😊"
+   - Jangan sebut diskon kalau total masih jauh dari Rp500rb. Hanya sebut kalau sudah dekat atau lewat.
+
+5. REPEAT/RESTOCK HOOK (saat customer sudah checkout atau menunjukkan pernah beli):
+   - "Kak, produk frozen kita tahan 3-6 bulan di freezer, jadi bisa stok sekalian biar nggak bolak-balik order 👍"
+
+FORMAT UPSELLING:
+- Sisipkan di AKHIR jawaban utama, setelah menjawab pertanyaan customer.
+- Maksimal 1 kalimat upsell. Jangan panjang.
+- Tone: seperti teman yang kasih saran, BUKAN sales script.
+- Kalau customer sudah tolak/bilang cukup, JANGAN upsell lagi di turn berikutnya.
+- JANGAN upsell produk yang tidak ada di DATA PRODUK SHOPIFY saat ini.
+
 DATA PRODUK SHOPIFY SAAT INI:
 ${productContext}`;
 }
@@ -585,7 +621,7 @@ async function callGemini(systemPrompt, contents) {
           contents,
           generationConfig: {
             temperature: 0.35,
-            maxOutputTokens: 260,
+            maxOutputTokens: 320,
           },
         }),
       }, 9000);
