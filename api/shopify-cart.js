@@ -20,7 +20,20 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const { lines } = req.body || {};
+    const body = req.body || {};
+
+    let lines = body.lines;
+
+    // Backward compatibility: allow old frontend format
+    // { variantId: "gid://shopify/ProductVariant/...", quantity: 1 }
+    if (!Array.isArray(lines) && body.variantId) {
+      lines = [
+        {
+          merchandiseId: body.variantId,
+          quantity: Number(body.quantity || 1)
+        }
+      ];
+    }
 
     if (!Array.isArray(lines) || lines.length === 0) {
       return res.status(400).json({
@@ -29,18 +42,32 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const cleanLines = lines.map((line) => {
-      const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
+    const cleanLines = lines
+      .map((line) => {
+        const merchandiseId = line.merchandiseId || line.variantId;
+        const quantity = Math.max(1, Math.min(Number(line.quantity || 1), 99));
 
-      return {
-        merchandiseId: line.variantId,
-        quantity
-      };
-    });
+        if (!merchandiseId || typeof merchandiseId !== "string") {
+          return null;
+        }
+
+        return {
+          merchandiseId,
+          quantity
+        };
+      })
+      .filter(Boolean);
+
+    if (cleanLines.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "No valid Shopify variant IDs provided"
+      });
+    }
 
     const mutation = `
-      mutation CartCreate($lines: [CartLineInput!]!) {
-        cartCreate(input: { lines: $lines }) {
+      mutation CartCreate($input: CartInput!) {
+        cartCreate(input: $input) {
           cart {
             id
             checkoutUrl
@@ -62,8 +89,10 @@ module.exports = async function handler(req, res) {
                     ... on ProductVariant {
                       id
                       title
+                      availableForSale
                       product {
                         title
+                        handle
                       }
                       price {
                         amount
@@ -92,7 +121,9 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         query: mutation,
         variables: {
-          lines: cleanLines
+          input: {
+            lines: cleanLines
+          }
         }
       })
     });
@@ -107,7 +138,15 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const payload = data.data.cartCreate;
+    const payload = data?.data?.cartCreate;
+
+    if (!payload) {
+      return res.status(500).json({
+        ok: false,
+        error: "Invalid Shopify cartCreate response",
+        data
+      });
+    }
 
     if (payload.userErrors && payload.userErrors.length > 0) {
       return res.status(400).json({
@@ -119,7 +158,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       cart: payload.cart,
-      checkoutUrl: payload.cart.checkoutUrl
+      checkoutUrl: payload.cart?.checkoutUrl || null
     });
   } catch (error) {
     return res.status(500).json({
@@ -127,4 +166,4 @@ module.exports = async function handler(req, res) {
       error: error.message
     });
   }
-}
+};
