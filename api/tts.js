@@ -1,6 +1,16 @@
 // api/tts.js
 // Vercel Serverless Function — OpenAI TTS
 // Text chat tetap normal, tapi teks suara dinormalisasi agar bahasa Indonesia lebih natural.
+//
+// PERBAIKAN LATENCY (lihat README-TTS-FIX.md):
+// - Sebelumnya: server menunggu SELURUH audio dari OpenAI (arrayBuffer) lalu
+//   kirim sekali jadi ke client; client juga menunggu SELURUH body (res.blob())
+//   sebelum audio bisa diputar. Total = generation time + 2x full transfer.
+// - Sekarang: support GET (untuk <audio src="..."> native progressive streaming)
+//   dan response di-PIPE langsung dari OpenAI ke client per-chunk (tidak dibuffer
+//   penuh dulu), supaya audio mulai bisa diputar browser begitu byte pertama datang.
+
+const { Readable } = require("stream");
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -55,6 +65,13 @@ module.exports.config = { maxDuration: 20 };
 const _audioCache = new Map();
 const MAX_CACHE_ITEMS = 80;
 function getBody(req) {
+  // GET (dipakai oleh <audio src="/api/tts?text=...">) → ambil dari query string
+  if (req.method === "GET") {
+    return {
+      text: req.query?.text || "",
+      mode: req.query?.mode || "sync",
+    };
+  }
   if (!req.body) return {};
   if (typeof req.body === "string") {
     try { return JSON.parse(req.body); } catch (_) { return {}; }
@@ -287,11 +304,13 @@ function safeSpeechLimit(text, maxChars) {
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST" && req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   // Rate limiting (stricter for TTS — more expensive)
   cleanupRateMap();
@@ -332,6 +351,7 @@ module.exports = async function handler(req, res) {
     const cacheKey = makeCacheKey(speechText, voice, speed);
     const cached = cacheGet(cacheKey);
 
+    // ── CACHE HIT: sudah berupa Buffer di memori, kirim langsung (paling cepat) ──
     if (cached) {
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Content-Length", cached.length);
@@ -340,8 +360,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).send(cached);
     }
 
+    // ── CACHE MISS: PIPE langsung dari OpenAI ke client, JANGAN dibuffer penuh dulu.
+    // Ini kunci fix delay: browser (lewat <audio src=...>) mulai terima & bisa
+    // mulai memutar byte audio begitu OpenAI mengirimnya, bukan menunggu file
+    // selesai 100% baru dikirim sekaligus.
     const openaiController = new AbortController();
-    const openaiTimeout = setTimeout(() => openaiController.abort(), 12000);
+    const openaiTimeout = setTimeout(() => openaiController.abort(), 18000);
 
     const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
@@ -357,23 +381,37 @@ module.exports = async function handler(req, res) {
         speed,
       }),
       signal: openaiController.signal,
-    }).finally(() => clearTimeout(openaiTimeout));
+    });
 
     if (!ttsRes.ok) {
+      clearTimeout(openaiTimeout);
       const errText = await ttsRes.text();
       console.error("OpenAI TTS error:", ttsRes.status, errText);
       return res.status(502).json({ error: "Gagal generate suara dari OpenAI." });
     }
 
-    const arrayBuffer = await ttsRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    cacheSet(cacheKey, buffer);
-
     res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Length", buffer.length);
     res.setHeader("Cache-Control", "public, max-age=86400");
-    res.setHeader("X-TTS-Cache", "MISS");
-    return res.status(200).send(buffer);
+    res.setHeader("X-TTS-Cache", "MISS-STREAM");
+    // Tanpa Content-Length → Vercel/Node otomatis pakai chunked transfer,
+    // sehingga browser bisa mulai consume/play sebelum stream berakhir.
+    res.flushHeaders?.();
+
+    const nodeStream = Readable.fromWeb(ttsRes.body);
+    const chunks = [];
+    nodeStream.on("data", (chunk) => chunks.push(chunk));
+    nodeStream.on("end", () => {
+      clearTimeout(openaiTimeout);
+      try { cacheSet(cacheKey, Buffer.concat(chunks)); } catch (_) {}
+    });
+    nodeStream.on("error", (err) => {
+      clearTimeout(openaiTimeout);
+      console.error("TTS stream error:", err);
+      try { res.end(); } catch (_) {}
+    });
+
+    nodeStream.pipe(res);
+    return; // response diakhiri oleh stream pipe (res.end() otomatis saat 'end')
   } catch (err) {
     console.error("TTS handler error:", err);
     if (!res.headersSent) {
