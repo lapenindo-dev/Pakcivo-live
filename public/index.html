@@ -559,7 +559,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v5.0.1-best-selling-5";
+const APP_VERSION = "v5.0.3-voice-speed-1.2x";
 console.log("Tokopakcivo", APP_VERSION);
 const PRODUCTS = [
   {
@@ -1051,11 +1051,14 @@ function setTalking(on){
   document.getElementById("stage").classList.toggle("talking",on);
 }
 
-// ── TTS: voice-sync mode, avoids showing the whole answer before audio is ready ──
+// ── TTS: voice-continuity mode, keeps long answers from being cut mid-audio ──
 let currentAudio=null,_actx=null,currentTtsController=null,voiceSeq=0,activeTypingTimer=null;
 const ttsCache=new Map();
-const VOICE_MAX_CHARS=190;
+const VOICE_CHUNK_MAX_CHARS=220;
+const VOICE_TOTAL_MAX_CHARS=920;
+const VOICE_SHORT_MAX_CHARS=360;
 const VOICE_ACK_TEXT="Siap Kak, Pak Civo cek dulu ya.";
+const VOICE_PLAYBACK_RATE=1.2;
 function getCtx(){if(!_actx||_actx.state==="closed")_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}
 function stopTyping(){
   if(activeTypingTimer){clearInterval(activeTypingTimer);activeTypingTimer=null;}
@@ -1089,33 +1092,69 @@ function cutAtWordBoundary(text, maxChars){
   const soft=value.slice(0,maxChars);
   const lastPunct=Math.max(soft.lastIndexOf("."),soft.lastIndexOf("!"),soft.lastIndexOf("?"));
   if(lastPunct>=70) return soft.slice(0,lastPunct+1).trim();
+  const lastComma=Math.max(soft.lastIndexOf(","),soft.lastIndexOf(";"));
+  if(lastComma>=90) return soft.slice(0,lastComma).trim()+".";
   const lastSpace=soft.lastIndexOf(" ");
   const trimmed=(lastSpace>70?soft.slice(0,lastSpace):soft).trim();
   return /[.!?]$/.test(trimmed)?trimmed:trimmed+".";
 }
-function shortenForVoice(text){
-  const cleaned=String(text||"")
+function cleanForVoice(text){
+  return String(text||"")
     .replace(/https?:\/\/\S+/gi," ")
     .replace(/Checkout Sekarang/gi," ")
     .replace(/Total item:\s*\d+/gi," ")
     .replace(/\bError:\s*[^.?!]+/gi," ")
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu," ")
+    .replace(/[\u{2600}-\u{27BF}]/gu," ")
     .replace(/\s+/g," ")
     .trim();
+}
+function makeVoiceScript(text, maxChars){
+  const cleaned=cleanForVoice(text);
   if(!cleaned) return "";
-
-  // Voice should be a short spoken summary. The full text is shown after/while speech is playing.
-  const sentences=(cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[cleaned])
-    .map(s=>s.trim())
-    .filter(Boolean);
-  let picked="";
-  for(const sentence of sentences){
-    const next=(picked?picked+" ":"")+sentence;
-    if(next.length>VOICE_MAX_CHARS) break;
-    picked=next;
-    if(picked.length>=85) break;
+  if(cleaned.length<=maxChars) return cleaned;
+  const clipped=cutAtWordBoundary(cleaned,maxChars);
+  const suffix=" Detail lengkapnya saya tampilkan di layar ya, Kak.";
+  if(clipped.length + suffix.length <= maxChars + 90 && cleaned.length > clipped.length + 80){
+    return clipped.replace(/[.!?]?$/, ".") + suffix;
   }
-  if(!picked) picked=cutAtWordBoundary(cleaned,VOICE_MAX_CHARS);
-  return cutAtWordBoundary(picked,VOICE_MAX_CHARS);
+  return clipped;
+}
+function splitVoiceChunks(text, opts){
+  opts=opts||{};
+  const maxTotal=opts.full ? VOICE_TOTAL_MAX_CHARS : VOICE_SHORT_MAX_CHARS;
+  const script=makeVoiceScript(text,maxTotal);
+  if(!script || shouldSkipVoice(script)) return [];
+  const sentences=(script.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[script]).map(s=>s.trim()).filter(Boolean);
+  const chunks=[];
+  let current="";
+  const pushLong=(part)=>{
+    let rest=part;
+    while(rest.length>VOICE_CHUNK_MAX_CHARS){
+      const piece=cutAtWordBoundary(rest,VOICE_CHUNK_MAX_CHARS);
+      chunks.push(piece);
+      rest=rest.slice(piece.length).replace(/^\s+/,"");
+      if(!rest || chunks.length>=8) break;
+    }
+    if(rest) chunks.push(rest);
+  };
+  for(const sentence of sentences){
+    if(chunks.length>=8) break;
+    if(sentence.length>VOICE_CHUNK_MAX_CHARS){
+      if(current){chunks.push(current);current="";}
+      pushLong(sentence);
+      continue;
+    }
+    const next=current ? current+" "+sentence : sentence;
+    if(next.length>VOICE_CHUNK_MAX_CHARS){
+      if(current) chunks.push(current);
+      current=sentence;
+    }else{
+      current=next;
+    }
+  }
+  if(current && chunks.length<8) chunks.push(current);
+  return chunks.map(c=>c.trim()).filter(Boolean);
 }
 function shouldSkipVoice(text){
   const lower=String(text||"").toLowerCase();
@@ -1128,22 +1167,12 @@ async function getTtsUrl(text, seq){
   const key=String(text||"").toLowerCase().trim();
   if(!key) return "";
   if(ttsCache.has(key)) return ttsCache.get(key);
-
-  // FIX DELAY: dulu pakai fetch()+await res.blob() yang BARU resolve setelah
-  // SELURUH file audio selesai didownload — jadi audio baru bisa mulai diputar
-  // setelah generate + transfer 100% kelar. Sekarang langsung kasih URL GET
-  // ke /api/tts (yang sekarang men-stream/pipe dari OpenAI), dan biarkan
-  // elemen <audio> browser men-streaming-play secara progresif begitu byte
-  // pertama datang — tidak perlu fetch/blob sama sekali.
   if(seq===voiceSeq) currentTtsController=null;
-  const url="/api/tts?mode=sync&clientVersion="+encodeURIComponent(APP_VERSION)+"&text="+encodeURIComponent(text);
-  // Tidak di-cache sebagai object URL karena ini bukan blob; biarkan request
-  // berikutnya ke teks yang sama kena cache HTTP (Cache-Control) atau cache
-  // server-side (X-TTS-Cache HIT) di sisi /api/tts.
-  return url;
+  return "/api/tts?mode=sync&clientVersion="+encodeURIComponent(APP_VERSION)+"&text="+encodeURIComponent(text);
 }
 async function preloadVoiceText(text){
-  const cleaned=shortenForVoice(text);
+  const chunks=splitVoiceChunks(text,{full:false});
+  const cleaned=chunks[0]||"";
   if(!cleaned || shouldSkipVoice(cleaned)) return;
   const key=cleaned.toLowerCase().trim();
   if(ttsCache.has(key)) return;
@@ -1166,12 +1195,13 @@ function playQuickAckIfReady(){
     speak(VOICE_ACK_TEXT, function(){}, {allowInterrupt:true});
   }
 }
-function estimateTypeDurationMs(audio, text){
+function estimateTypeDurationMs(audio, text, chunks){
   const len=Array.from(String(text||"")).length || 1;
-  if(Number.isFinite(audio.duration) && audio.duration>0.4){
-    return Math.max(900, Math.min(9000, audio.duration*1000));
+  const chunkLen=(chunks||[]).join(" ").length || len;
+  if(Number.isFinite(audio && audio.duration) && audio.duration>0.4){
+    return Math.max(750, Math.min(15000, (audio.duration*1000/VOICE_PLAYBACK_RATE)*Math.max(1,(chunks||[]).length)));
   }
-  return Math.max(1100, Math.min(7000, len*38));
+  return Math.max(1100, Math.min(15000, Math.max(len*27, chunkLen*58)));
 }
 function typeSyncedText(el, text, finalHtml, durationMs, seq){
   if(!el) return;
@@ -1180,7 +1210,7 @@ function typeSyncedText(el, text, finalHtml, durationMs, seq){
   if(!chars.length){el.innerHTML=finalHtml;return;}
   el.innerHTML='<span class="voice-live-text"></span>';
   const target=el.querySelector(".voice-live-text") || el;
-  const step=Math.max(14, Math.min(55, durationMs / chars.length));
+  const step=Math.max(12, Math.min(58, durationMs / chars.length));
   let i=0;
   activeTypingTimer=setInterval(()=>{
     if(seq!==voiceSeq){stopTyping();return;}
@@ -1193,28 +1223,50 @@ function typeSyncedText(el, text, finalHtml, durationMs, seq){
     }
   },step);
 }
+async function playVoiceChunks(chunks, onDone, seq, opts){
+  opts=opts||{};
+  let index=0;
+  let onPlayingFired=false;
+  const playNext=async()=>{
+    if(seq!==voiceSeq) return;
+    if(index>=chunks.length){
+      setTalking(false);
+      if(onDone) onDone();
+      return;
+    }
+    const chunk=chunks[index++];
+    try{
+      const url=await getTtsUrl(chunk,seq);
+      if(seq!==voiceSeq) return;
+      if(!url) return playNext();
+      const audio=new Audio(url);
+      audio.preload="auto";
+      playAudio(audio,playNext,seq,{
+        onPlaying:()=>{
+          if(!onPlayingFired){
+            onPlayingFired=true;
+            if(opts.onPlaying) opts.onPlaying();
+          }
+        },
+        keepTalking:index<chunks.length
+      });
+    }catch(e){
+      if(seq===voiceSeq) playNext();
+    }
+  };
+  playNext();
+}
 async function speak(html, onDone, opts){
   opts=opts||{};
-  const text=shortenForVoice(extractPlainTextFromHtml(html));
-  if(!text || shouldSkipVoice(text)){ if(onDone) setTimeout(onDone,450); return; }
+  const chunks=splitVoiceChunks(extractPlainTextFromHtml(html),{full:!!opts.fullVoice});
+  if(!chunks.length){ if(onDone) setTimeout(onDone,450); return; }
   const seq=++voiceSeq;
-  try{
-    const url=await getTtsUrl(text,seq);
-    if(seq!==voiceSeq) return;
-    if(!url){ if(onDone) setTimeout(onDone,450); return; }
-    playAudio(new Audio(url),onDone,seq,opts);
-  }catch(e){
-    if(seq===voiceSeq){
-      currentTtsController=null;
-      setTalking(false);
-      if(onDone) setTimeout(onDone,450);
-    }
-  }
+  playVoiceChunks(chunks,onDone,seq,opts);
 }
 async function speakSynced(html, targetEl, onDone){
   const fullText=extractPlainTextFromHtml(html);
-  const voiceText=shortenForVoice(fullText);
-  if(!voiceText || shouldSkipVoice(voiceText)){
+  const chunks=splitVoiceChunks(fullText,{full:true});
+  if(!chunks.length){
     if(targetEl) targetEl.innerHTML=html;
     if(onDone) setTimeout(onDone,450);
     return;
@@ -1224,28 +1276,19 @@ async function speakSynced(html, targetEl, onDone){
     targetEl.innerHTML='<span class="voice-wait">Pak Civo sedang menyiapkan suara</span>';
     try{targetEl.parentNode.scrollTop=targetEl.parentNode.scrollHeight;}catch(e){}
   }
-  const url=await getTtsUrl(voiceText,seq);
-  if(seq!==voiceSeq) return;
-  if(!url){
-    if(targetEl) targetEl.innerHTML=html;
-    if(onDone) setTimeout(onDone,450);
-    return;
-  }
-  const audio=new Audio(url);
-  audio.preload="auto";
   let startedTyping=false;
   const startTyping=()=>{
     if(startedTyping || seq!==voiceSeq) return;
     startedTyping=true;
-    const duration=estimateTypeDurationMs(audio, fullText);
+    const duration=estimateTypeDurationMs(null, fullText, chunks);
     typeSyncedText(targetEl, fullText, html, duration, seq);
   };
-  playAudio(audio,()=>{
+  playVoiceChunks(chunks,()=>{
     if(targetEl && seq===voiceSeq) targetEl.innerHTML=html;
     if(onDone) onDone();
   },seq,{onPlaying:startTyping});
   // Fallback: if browser doesn't fire onplaying fast enough, begin typing once play attempt starts.
-  setTimeout(()=>{ if(!startedTyping && seq===voiceSeq) startTyping(); },550);
+  setTimeout(()=>{ if(!startedTyping && seq===voiceSeq) startTyping(); },650);
 }
 function playAudio(audio, onDone, seq, opts){
   opts=opts||{};
@@ -1258,12 +1301,13 @@ function playAudio(audio, onDone, seq, opts){
   currentAudio=audio;
   audio.preload="auto";
   audio.volume=1.0;
+  try{audio.playbackRate=VOICE_PLAYBACK_RATE; audio.defaultPlaybackRate=VOICE_PLAYBACK_RATE;}catch(e){}
   let finished=false;
   const finish=()=>{
     if(finished) return;
     finished=true;
     if(currentAudio===audio) currentAudio=null;
-    if(seq===voiceSeq) setTalking(false);
+    if(seq===voiceSeq && !opts.keepTalking) setTalking(false);
     if(onDone)onDone();
   };
   const tryPlay=()=>{
@@ -1376,7 +1420,7 @@ async function send(){
     messages.push({role:"assistant",content:reply});
     const html=fmt(reply, checkoutUrl);
     const pcTextEl=document.getElementById("pcText");
-    const canVoiceSync = !shouldSkipVoice(shortenForVoice(extractPlainTextFromHtml(html)));
+    const canVoiceSync = splitVoiceChunks(extractPlainTextFromHtml(html), {full:true}).length > 0;
     pcTextEl.innerHTML = canVoiceSync ? '<span class="voice-wait">Pak Civo menyiapkan jawaban suara</span>' : html;
     pcTextEl.parentNode.scrollTop=pcTextEl.parentNode.scrollHeight;
 
