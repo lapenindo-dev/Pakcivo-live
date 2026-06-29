@@ -145,6 +145,16 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
   border:1px solid rgba(255,255,255,0.1);transition:transform 0.15s;
 }
 .sicon:active{transform:scale(0.88);}
+.ui-icon-img{display:block;width:100%;height:100%;object-fit:contain;}
+.sicon .ui-icon-img{width:34px;height:34px;border-radius:12px;}
+.brand-av .ui-icon-img{width:22px;height:22px;border-radius:7px;}
+.pc-emoji{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pc-emoji .ui-icon-img{width:34px;height:34px;border-radius:9px;}
+.ps-icon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
+.qchip{display:inline-flex;align-items:center;gap:6px;}
+.qicon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
+.cart-fab{display:flex;align-items:center;justify-content:center;}
+.cart-fab .ui-icon-img{width:24px;height:24px;border-radius:8px;}
 .slbl{font-size:9px;color:rgba(255,255,255,0.7);font-weight:600;}
 
 /* ── PAK CIVO REPLY ── */
@@ -180,7 +190,6 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
   border: 1px solid rgba(200,133,74,0.2); border-radius: 10px;
   padding: 7px 10px; display: flex; align-items: center; gap: 8px;
 }
-.pc-emoji{font-size:22px;flex-shrink:0;}
 .pc-info{flex:1;}
 .pc-name{font-size:12px;font-weight:900;color:white;line-height:1.2;}
 .pc-price-row{display:flex;align-items:baseline;gap:4px;margin-top:3px;}
@@ -209,11 +218,11 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── QUICK CHIPS ── */
 .quick-chips{position:absolute;bottom:78px;left:14px;right:14px;z-index:37;display:none;flex-wrap:wrap;gap:5px;}
-.qchip{background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(200,133,74,0.3);color:rgba(200,133,74,0.95);font-size:11px;font-weight:700;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+.qchip{background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(200,133,74,0.3);color:rgba(200,133,74,0.95);font-size:11px;font-weight:700;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
 
 /* ── BOTTOM BAR ── */
 .bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:30;background:rgba(5,4,2,0.97);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,0.06);padding:8px 14px 22px;display:flex;align-items:center;gap:8px;}
-.cart-fab{width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:white;font-size:18px;cursor:pointer;flex-shrink:0;position:relative;}
+.cart-fab{width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:white;font-size:18px;cursor:pointer;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;}
 .cart-badge{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--red);font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;}
 .msg-input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:999px;padding:12px 16px;font-size:13px;color:white;outline:none;}
 .msg-input::placeholder{color:rgba(255,255,255,0.25);}
@@ -452,7 +461,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
       <div class="viewer-pill">👁 <span id="viewerCount">128</span></div>
     </div>
     <div class="brand-pill">
-      <div class="brand-av">🥩</div>
+      <div class="brand-av"><img class="ui-icon-img" src="/icons/pakcivo-best-products.png" alt="CIVO MEAT"></div>
       <span style="font-size:11px;font-weight:800">civomeat</span>
     </div>
   </div>
@@ -463,24 +472,19 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sact" onclick="doLike(event)">
-      <div class="sicon" id="likeIcon">❤️</div>
+      <div class="sicon" id="likeIcon"><img class="ui-icon-img" src="/icons/pakcivo-premium-favorite.png" alt="Favorit"></div>
       <div class="slbl" id="likeCount">2.3rb</div>
     </div>
     <div class="sact" onclick="toggleChips()">
-      <div class="sicon">💬</div>
+      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-chat-host.png" alt="Chat"></div>
       <div class="slbl">Chat</div>
     </div>
     <div class="sact" onclick="shareWA()">
-      <div class="sicon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-          <polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
-        </svg>
-      </div>
+      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-admin-support.png" alt="Share"></div>
       <div class="slbl">Share</div>
     </div>
     <div class="sact" onclick="showCart()">
-      <div class="sicon">🛒</div>
+      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-cart-checkout.png" alt="Keranjang"></div>
       <div class="slbl" id="cartSlbl">0</div>
     </div>
   </div>
@@ -495,7 +499,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- PRODUCT CARD -->
   <div class="product-card">
-    <div class="pc-emoji" id="pcEmoji">🥓</div>
+    <div class="pc-emoji" id="pcEmoji"><img class="ui-icon-img" src="/icons/pakcivo-best-products.png" alt="Produk"></div>
     <div class="pc-info">
       <div class="pc-name" id="pcName">Samcan Lokal 1kg</div>
       <div class="pc-price-row">
@@ -513,17 +517,17 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
-    <div class="qchip" onclick="sendQ('Samcan lokal 1kg')">🥓 Samcan Lokal</div>
-    <div class="qchip" onclick="sendQ('Babi giling 500g')">🥩 Babi Giling</div>
-    <div class="qchip" onclick="sendQ('Paikut sop 500g')">🍖 Paikut Sop</div>
-    <div class="qchip" onclick="sendQ('Kapsim 1kg')">🔪 Kapsim</div>
-    <div class="qchip" onclick="sendQ('Samcan import 1kg')">🔥 Samcan Import</div>
+    <div class="qchip" onclick="sendQ('Samcan lokal 1kg')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Samcan Lokal</div>
+    <div class="qchip" onclick="sendQ('Babi giling 500g')"><img class="qicon" src="/icons/pakcivo-product-catalog.png" alt=""> Babi Giling</div>
+    <div class="qchip" onclick="sendQ('Paikut sop 500g')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Paikut Sop</div>
+    <div class="qchip" onclick="sendQ('Kapsim 1kg')"><img class="qicon" src="/icons/pakcivo-recommendation.png" alt=""> Kapsim</div>
+    <div class="qchip" onclick="sendQ('Samcan import 1kg')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Samcan Import</div>
   </div>
 
   <!-- BOTTOM BAR -->
   <div class="bottom-bar">
-    <button class="cart-fab" onclick="showCart()">
-      🛒<div class="cart-badge" id="cartBadge">0</div>
+    <button class="cart-fab" onclick="showCart()" aria-label="Buka keranjang">
+      <img class="ui-icon-img" src="/icons/pakcivo-cart-checkout.png" alt=""><div class="cart-badge" id="cartBadge">0</div>
     </button>
     <input class="msg-input" id="msgInput" placeholder="Tanya Pak Civo..." disabled/>
     <button class="send-btn" onclick="send()">➤</button>
@@ -559,8 +563,22 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v5.0.3-voice-speed-1.2x";
+const APP_VERSION = "v5.0.4-premium-icons";
 console.log("Tokopakcivo", APP_VERSION);
+const ICONS = {
+  chatHost: "/icons/pakcivo-chat-host.png",
+  bestProducts: "/icons/pakcivo-best-products.png",
+  promoDiscount: "/icons/pakcivo-promo-discount.png",
+  premiumFavorite: "/icons/pakcivo-premium-favorite.png",
+  recommendation: "/icons/pakcivo-recommendation.png",
+  bbqPackage: "/icons/pakcivo-bbq-package.png",
+  branchLocation: "/icons/pakcivo-branch-location.png",
+  chilledDelivery: "/icons/pakcivo-chilled-delivery.png",
+  productCatalog: "/icons/pakcivo-product-catalog.png",
+  adminSupport: "/icons/pakcivo-admin-support.png",
+  cartCheckout: "/icons/pakcivo-cart-checkout.png",
+  voiceAudio: "/icons/pakcivo-voice-audio.png"
+};
 const PRODUCTS = [
   {
     id: "samcan-lokal-1kg",
@@ -569,6 +587,7 @@ const PRODUCTS = [
     price: "130rb",
     unit: "/ 1 kg",
     emoji: "🥓",
+    icon: ICONS.bestProducts,
     query: "Samcan Lokal 1kg",
     variantId: "gid://shopify/ProductVariant/48252265136282",
     availableForSale: true
@@ -580,6 +599,7 @@ const PRODUCTS = [
     price: "40rb",
     unit: "/ 500 g",
     emoji: "🥩",
+    icon: ICONS.productCatalog,
     query: "Babi Giling 500g",
     variantId: "",
     availableForSale: true
@@ -591,6 +611,7 @@ const PRODUCTS = [
     price: "50rb",
     unit: "/ 500 g",
     emoji: "🍖",
+    icon: ICONS.bbqPackage,
     query: "Paikut Sop 500g",
     variantId: "",
     availableForSale: true
@@ -602,6 +623,7 @@ const PRODUCTS = [
     price: "80rb",
     unit: "/ 1 kg",
     emoji: "🔪",
+    icon: ICONS.recommendation,
     query: "Kapsim 1kg Shoulder Babi",
     variantId: "",
     availableForSale: true
@@ -613,6 +635,7 @@ const PRODUCTS = [
     price: "150rb",
     unit: "/ 1 kg",
     emoji: "🔥",
+    icon: ICONS.premiumFavorite,
     query: "Samcan Import 1kg",
     variantId: "gid://shopify/ProductVariant/48497412604058",
     availableForSale: true
@@ -883,6 +906,23 @@ function emojiForProduct(text){
   if(/seafood|ikan|udang/.test(t)) return "🦐";
   return "🥩";
 }
+function iconForProduct(text){
+  const t=String(text||"").toLowerCase();
+  if(/rib|ribs|iga|paikut|bakut|bbq|grill|barbeque/.test(t)) return ICONS.bbqPackage;
+  if(/samcan|pork\s*belly|wuhua|premium|import|impor/.test(t)) return ICONS.bestProducts;
+  if(/giling|ground|minced|mince|catalog|produk/.test(t)) return ICONS.productCatalog;
+  if(/kapsim|shoulder|kasim|rekomendasi|recommend/.test(t)) return ICONS.recommendation;
+  if(/promo|diskon|discount/.test(t)) return ICONS.promoDiscount;
+  return ICONS.bestProducts;
+}
+function uiIconHtml(src, alt, cls){
+  if(!src) return "";
+  return `<img class="${escapeHtml(cls||"ui-icon-img")}" src="${escapeHtml(src)}" alt="${escapeHtml(alt||"")}" loading="lazy" decoding="async">`;
+}
+function productIconHtml(p, cls){
+  if(p && p.icon) return uiIconHtml(p.icon, p.name||"Produk", cls||"ui-icon-img");
+  return `<span>${escapeHtml(p?.emoji||"🥩")}</span>`;
+}
 function productFromShopifyProduct(prod){
   const variants=Array.isArray(prod?.variants)?prod.variants:[];
   const variant=variants.find(v=>v && v.availableForSale!==false && v.id) || variants.find(v=>v && v.id) || null;
@@ -895,6 +935,7 @@ function productFromShopifyProduct(prod){
     price: formatShopifyPriceToRb(variant.price) || "",
     unit: inferUnitFromTitle(prod.title, variant.title),
     emoji: emojiForProduct(`${prod.title||""} ${prod.productType||""}`),
+    icon: iconForProduct(`${prod.title||""} ${prod.productType||""}`),
     query: prod.title || name,
     variantId: variant.id,
     image: prod.image || null,
@@ -944,6 +985,7 @@ function mergeBestSellerProduct(base, mapped){
     unit: mapped.unit || base.unit,
     variantId: mapped.variantId || base.variantId,
     image: mapped.image || base.image || null,
+    icon: base.icon || mapped.icon || ICONS.bestProducts,
     availableForSale: mapped.availableForSale!==false,
     query: mapped.query || base.query,
     shopifyName: mapped.name || base.shopifyName || ""
@@ -978,7 +1020,7 @@ function setProduct(idx){
   if(!PRODUCTS.length) return;
   curProd=Math.max(0, Math.min(Number(idx)||0, PRODUCTS.length-1));
   const p=PRODUCTS[curProd];
-  document.getElementById("pcEmoji").textContent=p.emoji || "🥩";
+  document.getElementById("pcEmoji").innerHTML=productIconHtml(p,"ui-icon-img");
   document.getElementById("pcName").textContent=p.name || "Produk CIVO MEAT";
   document.getElementById("pcPrice").textContent=p.price || "Cek harga";
   document.getElementById("pcUnit").textContent=p.unit || "";
@@ -1015,7 +1057,7 @@ function refreshProductStrip(){
     const el=document.createElement("button");
     el.type="button";
     el.className="ps-chip"+(i===curProd?" active":"");
-    el.innerHTML=`<span class="ps-e">${escapeHtml(p.emoji||"🥩")}</span><span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-p">${escapeHtml(p.price||"")}</span>`;
+    el.innerHTML=`${productIconHtml(p,"ps-icon")}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-p">${escapeHtml(p.price||"")}</span>`;
     el.onclick=()=>setProduct(i);
     ps.appendChild(el);
   });
