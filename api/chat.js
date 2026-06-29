@@ -149,7 +149,7 @@ async function shopifyGraphQL(query, variables = {}) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Shopify-Storefront-Private-Token": SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+        "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_ACCESS_TOKEN,
       },
       body: JSON.stringify({ query, variables }),
     }

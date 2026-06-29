@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Shopify-Storefront-Private-Token": token
+        "X-Shopify-Storefront-Access-Token": token
       },
       body: JSON.stringify({
         query: mutation,

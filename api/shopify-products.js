@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     const shop = process.env.SHOPIFY_STORE_DOMAIN;
     const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Shopify-Storefront-Private-Token": token
+        "X-Shopify-Storefront-Access-Token": token
       },
       body: JSON.stringify({
         query,
