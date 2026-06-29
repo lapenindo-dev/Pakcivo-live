@@ -1,8 +1,8 @@
 {
   "name": "pakcivo-live",
-  "version": "5.0.4",
+  "version": "5.0.6",
   "private": true,
-  "description": "Pak Civo Live v5.0.4 premium custom icons",
+  "description": "Pak Civo Live v5.0.6 Shopify product images and premium quick menu",
   "engines": {
     "node": "20.x"
   }
