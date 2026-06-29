@@ -145,6 +145,18 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
   border:1px solid rgba(255,255,255,0.1);transition:transform 0.15s;
 }
 .sicon:active{transform:scale(0.88);}
+.like-heart-icon{
+  color:#E53935;
+  font-size:28px;
+  line-height:1;
+  font-weight:900;
+  text-shadow:0 0 14px rgba(229,57,53,0.38);
+}
+.like-heart-icon.liked{
+  color:#FF3B30;
+  text-shadow:0 0 18px rgba(255,59,48,0.55);
+}
+
 .sact.active .sicon{border-color:rgba(200,133,74,0.56);box-shadow:0 0 0 3px rgba(200,133,74,0.14);}
 .sact.active .slbl{color:var(--copper);}
 .like-generic{font-size:25px;color:#fff;line-height:1;text-shadow:0 4px 14px rgba(0,0,0,0.45);}
@@ -536,11 +548,11 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
     <div class="quick-panel-head"><div><div class="quick-panel-title">Quick Chat</div><div class="quick-panel-sub">5 produk favorit</div></div></div>
-    <div class="qchip" onclick="sendQ('Samcan lokal 1kg')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Samcan Lokal</div>
-    <div class="qchip" onclick="sendQ('Babi giling 500g')"><img class="qicon" src="/icons/pakcivo-product-catalog.png" alt=""> Babi Giling</div>
-    <div class="qchip" onclick="sendQ('Paikut sop 500g')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Paikut Sop</div>
-    <div class="qchip" onclick="sendQ('Kapsim 1kg')"><img class="qicon" src="/icons/pakcivo-recommendation.png" alt=""> Kapsim</div>
-    <div class="qchip" onclick="sendQ('Samcan import 1kg')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Samcan Import</div>
+    <div class="qchip" onclick="sendProductQuick('samcan-lokal-1kg')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Samcan Lokal</div>
+    <div class="qchip" onclick="sendProductQuick('babi-giling-500g')"><img class="qicon" src="/icons/pakcivo-product-catalog.png" alt=""> Babi Giling</div>
+    <div class="qchip" onclick="sendProductQuick('paikut-sop-500g')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Paikut Sop</div>
+    <div class="qchip" onclick="sendProductQuick('kapsim-1kg')"><img class="qicon" src="/icons/pakcivo-recommendation.png" alt=""> Kapsim</div>
+    <div class="qchip" onclick="sendProductQuick('samcan-import-1kg')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Samcan Import</div>
   </div>
 
   <!-- BOTTOM BAR -->
@@ -582,7 +594,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v5.0.6-product-images-like-fix";
+const APP_VERSION = "v5.0.9-catalog-wide-shopify-search";
 console.log("Tokopakcivo", APP_VERSION);
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
@@ -608,6 +620,7 @@ const PRODUCTS = [
     emoji: "🥓",
     icon: null,
     query: "Samcan Lokal 1kg",
+    shopifyQueries: ["Samcan Lokal 1kg","Samcan Babi Pork Belly Lokal 1kg","Pork Belly Lokal","samcan lokal"],
     variantId: "gid://shopify/ProductVariant/48252265136282",
     availableForSale: true
   },
@@ -620,6 +633,7 @@ const PRODUCTS = [
     emoji: "🥩",
     icon: null,
     query: "Babi Giling 500g",
+    shopifyQueries: ["Babi Giling 500g","Daging Babi Giling 500g","Babi Giling","giling babi","ground pork","minced pork"],
     variantId: "",
     availableForSale: true
   },
@@ -632,6 +646,7 @@ const PRODUCTS = [
     emoji: "🍖",
     icon: null,
     query: "Paikut Sop 500g",
+    shopifyQueries: ["Paikut Sop 500g","Paikut Sop","Paikut","Bakut","Bak Kut","Pork Ribs Sop","ribs chopped"],
     variantId: "",
     availableForSale: true
   },
@@ -644,6 +659,7 @@ const PRODUCTS = [
     emoji: "🔪",
     icon: null,
     query: "Kapsim 1kg Shoulder Babi",
+    shopifyQueries: ["Kapsim 1kg","Kapsim Babi 1kg","Shoulder Babi 1kg","Pork Shoulder","kasim"],
     variantId: "",
     availableForSale: true
   },
@@ -656,6 +672,7 @@ const PRODUCTS = [
     emoji: "🔥",
     icon: null,
     query: "Samcan Import 1kg",
+    shopifyQueries: ["Samcan Import 1kg","Pork Belly Samcan Import 1kg","Pork Belly Import","Wuhua Rou Import"],
     variantId: "gid://shopify/ProductVariant/48497412604058",
     availableForSale: true
   }
@@ -1094,7 +1111,7 @@ function refreshProductStrip(){
 async function hydrateProductsFromShopify(){
   try{
     const all=[];
-    const queries=[...new Set(PRODUCTS.map(p=>p.query).filter(Boolean))];
+    const queries=[...new Set(PRODUCTS.flatMap(p=>Array.isArray(p.shopifyQueries)&&p.shopifyQueries.length?p.shopifyQueries:[p.query]).filter(Boolean))];
     for(const q of queries){
       try{
         const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q),{cache:"no-store"});
@@ -1481,7 +1498,23 @@ async function send(){
 
   try{
     const cc=cartItems.length?"[CART: "+cartItems.join(", ")+"]":"[CART KOSONG]";
-    const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:messages.slice(-8),cartContext:cc,lead:currentLead})});
+    const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        messages:messages.slice(-8),
+        cartContext:cc,
+        lead:currentLead,
+        catalogHints:PRODUCTS.map(p=>({
+          id:p.id,
+          name:p.name,
+          price:p.price,
+          unit:p.unit,
+          query:p.query,
+          shopifyQueries:p.shopifyQueries||[],
+          variantId:p.variantId||"",
+          availableForSale:p.availableForSale!==false,
+          image:p.image||null,
+          shopifyName:p.shopifyName||""
+        }))
+      })});
     if(!res.ok)throw new Error("Chat API HTTP "+res.status);
     const data=await res.json();
     const reply=data.reply||"Maaf Kak, coba lagi ya!";
@@ -1543,6 +1576,15 @@ async function send(){
     setTimeout(()=>document.getElementById("pcReply").style.display="none",3000);
   }
   isLoading=false;
+}
+
+
+function sendProductQuick(productId){
+  const idx=PRODUCTS.findIndex(p=>p.id===productId);
+  if(idx>=0) setProduct(idx);
+  const p=idx>=0?PRODUCTS[idx]:null;
+  const text=p ? `Cek produk ${p.name}. Produk ini termasuk 5 best seller CIVO MEAT.` : String(productId||"");
+  sendQ(text);
 }
 
 function sendQ(t){
