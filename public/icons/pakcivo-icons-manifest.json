@@ -1,0 +1,54 @@
+[
+  {
+    "file": "/icons/pakcivo-chat-host.png",
+    "label": "Chat dengan Pak Civo / AI host"
+  },
+  {
+    "file": "/icons/pakcivo-best-products.png",
+    "label": "Best-selling products"
+  },
+  {
+    "file": "/icons/pakcivo-promo-discount.png",
+    "label": "Promo / discount"
+  },
+  {
+    "file": "/icons/pakcivo-premium-favorite.png",
+    "label": "Favorite / popular"
+  },
+  {
+    "file": "/icons/pakcivo-recommendation.png",
+    "label": "Recommendation / quality pick"
+  },
+  {
+    "file": "/icons/pakcivo-bbq-package.png",
+    "label": "BBQ package"
+  },
+  {
+    "file": "/icons/pakcivo-branch-location.png",
+    "label": "Nearest branch / location"
+  },
+  {
+    "file": "/icons/pakcivo-chilled-delivery.png",
+    "label": "Chilled delivery / shipping"
+  },
+  {
+    "file": "/icons/pakcivo-product-catalog.png",
+    "label": "All products / catalog"
+  },
+  {
+    "file": "/icons/pakcivo-admin-support.png",
+    "label": "Contact admin / support"
+  },
+  {
+    "file": "/icons/pakcivo-cart-checkout.png",
+    "label": "Shopping cart / checkout"
+  },
+  {
+    "file": "/icons/pakcivo-voice-audio.png",
+    "label": "Voice / audio response"
+  },
+  {
+    "file": "/icons/pakcivo-icons-preview-sheet.png",
+    "label": "Preview sheet only; not required by UI"
+  }
+]
