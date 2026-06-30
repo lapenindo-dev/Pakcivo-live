@@ -9,42 +9,91 @@
 <meta property="og:description" content="AI butcher CIVO MEAT siap bantu pilih produk dan buatkan checkout Shopify.">
 <meta property="og:image" content="/assets/pakcivo-poster.webp">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#050505">
+<meta name="theme-color" content="#070403">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-:root { --copper: #C8854A; --cream: #F5EDD0; --red: #CC2200; }
-body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; min-height: 100dvh; }
+:root {
+  --copper: #C8854A;
+  --copper-2: #E0A467;
+  --cream: #F5EDD0;
+  --red: #CC2200;
+  --charcoal: #070403;
+  --glass: rgba(8,6,4,0.74);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+html, body { width:100%; min-height:100%; overscroll-behavior:none; }
+body {
+  background: #000;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+  min-height: 100dvh;
+}
+button, input { font-family: inherit; }
 
 /* ── STAGE ── */
-.stage { position: fixed; inset: 0; overflow: hidden; min-height: 100dvh; }
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  width: 100vw;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--charcoal);
+}
 
 /* BG shop image */
 .bg-img {
-  position: absolute; inset: 0;
-  background-size: cover; background-position: center top;
-  filter: brightness(0.5) blur(1px);
-  transform: scale(1.04);
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  filter: brightness(0.72) saturate(1.1) contrast(1.02);
+  transform: scale(1.01);
+}
+.bg-img::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(224,164,103,0.13), transparent 31%),
+    linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.04) 34%, rgba(0,0,0,0.88) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.58), transparent 34%, transparent 66%, rgba(0,0,0,0.56));
 }
 
 /* Pak Civo video — center, portrait */
 .host-video {
   position: absolute;
-  bottom: 0; left: 50%; transform: translateX(-50%);
-  height: 80%; width: auto;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: min(82dvh, 82%);
+  width: auto;
+  max-width: 116vw;
   object-fit: contain;
+  object-position: center bottom;
   z-index: 5;
-  filter: drop-shadow(0 0 30px rgba(0,0,0,0.8));
+  filter: drop-shadow(0 14px 42px rgba(0,0,0,0.85));
 }
 
 /* Gradient bottom fade */
 .fade-bottom {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 45%;
-  background: linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 58%;
+  background: linear-gradient(to top, rgba(0,0,0,0.99) 0%, rgba(0,0,0,0.72) 42%, rgba(0,0,0,0.12) 100%);
   z-index: 6;
 }
 .fade-top {
-  position: absolute; top: 0; left: 0; right: 0; height: 25%;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 25%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.22) 62%, transparent 100%);
   z-index: 6;
 }
 
@@ -64,8 +113,16 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── TOP BAR ── */
 .top-bar {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-  padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: calc(10px + var(--safe-top)) 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 .live-pill {
   display: flex; align-items: center; gap: 5px;
@@ -76,14 +133,23 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: white; animation: ldP 1s infinite; }
 @keyframes ldP { 0%,100%{opacity:1} 50%{opacity:0.2} }
 .viewer-pill {
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
-  border-radius: 999px; padding: 5px 12px;
-  font-size: 11px; font-weight: 700;
+  background: rgba(0,0,0,0.56);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 800;
 }
 .brand-pill {
-  display: flex; align-items: center; gap: 7px;
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
   padding: 4px 12px 4px 5px;
 }
 .brand-av {
@@ -122,20 +188,34 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── CHAT BUBBLES ── */
 .chat-bubbles {
-  position: absolute; left: 14px; right: 68px; top: 72px; z-index: 20;
-  display: flex; flex-direction: column; gap: 6px;
-  pointer-events: none; max-height: 100px; overflow: hidden;
+  position: absolute;
+  left: 14px;
+  right: 72px;
+  bottom: calc(286px + var(--safe-bottom));
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  max-height: 132px;
+  overflow: hidden;
 }
 .cbubble { display:flex;align-items:flex-start;gap:6px;animation:cbIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 @keyframes cbIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 .cbav { width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900; }
-.cbtxt { background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);border-radius:4px 10px 10px 10px;padding:4px 9px;font-size:11px;line-height:1.35; }
+.cbtxt { background:rgba(0,0,0,0.48);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:5px 12px 12px 12px;padding:5px 10px;font-size:11px;line-height:1.35;box-shadow:0 8px 20px rgba(0,0,0,.22); }
 .cbname { font-weight:800;font-size:10px; }
 
 /* ── SIDEBAR ── */
 .sidebar {
-  position: absolute; right: 10px; bottom: 270px; z-index: 20;
-  display: flex; flex-direction: column; gap: 14px; align-items: center;
+  position: absolute;
+  right: 10px;
+  bottom: calc(210px + var(--safe-bottom));
+  z-index: 42;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  align-items: center;
 }
 .sact { display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer; }
 .sicon {
@@ -164,12 +244,54 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 .ui-icon-img{display:block;width:100%;height:100%;object-fit:contain;}
 .sicon .ui-icon-img{width:34px;height:34px;border-radius:12px;}
 .brand-av .ui-icon-img{width:22px;height:22px;border-radius:7px;}
+
+.brand-copy{min-width:0;line-height:1.05;}
+.brand-title{font-size:11px;font-weight:900;letter-spacing:.02em;white-space:nowrap;}
+.brand-sub{font-size:8.5px;font-weight:800;color:rgba(245,237,208,.64);white-space:nowrap;margin-top:2px;}
+.trust-hooks{
+  position:absolute;
+  top:calc(54px + var(--safe-top));
+  left:12px;
+  right:78px;
+  z-index:39;
+  display:flex;
+  gap:6px;
+  overflow:hidden;
+  pointer-events:none;
+}
+.trust-hook{
+  flex:0 0 auto;
+  border:1px solid rgba(224,164,103,.28);
+  background:rgba(8,6,4,.48);
+  backdrop-filter:blur(10px);
+  color:rgba(245,237,208,.88);
+  border-radius:999px;
+  padding:5px 9px;
+  font-size:9.5px;
+  font-weight:900;
+  box-shadow:0 8px 22px rgba(0,0,0,.22);
+}
+.live-hint{
+  position:absolute;
+  left:14px;
+  right:74px;
+  bottom:calc(372px + var(--safe-bottom));
+  z-index:22;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  pointer-events:none;
+  opacity:.94;
+}
+.live-hint-dot{width:7px;height:7px;border-radius:50%;background:var(--copper-2);box-shadow:0 0 14px rgba(224,164,103,.7);}
+.live-hint-text{font-size:11px;line-height:1.28;font-weight:850;color:rgba(245,237,208,.82);text-shadow:0 2px 12px rgba(0,0,0,.7);}
+@media (max-height: 740px){.live-hint{display:none;}.trust-hooks{right:12px;}.host-video{height:78dvh;}}
 .pc-emoji{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pc-emoji .ui-icon-img{width:34px;height:34px;border-radius:9px;}
 .product-photo{display:block;object-fit:cover;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);}
 .pc-emoji .product-photo{width:38px;height:38px;border-radius:11px;box-shadow:0 4px 14px rgba(0,0,0,0.28);}
 .product-fallback{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);font-size:18px;}
-.ps-icon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
+.ps-icon{grid-area:icon;width:32px;height:32px;border-radius:10px;object-fit:cover;display:block;flex-shrink:0;}
 .qchip{display:inline-flex;align-items:center;gap:6px;}
 .qicon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
 .cart-fab{display:flex;align-items:center;justify-content:center;}
@@ -178,12 +300,20 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── PAK CIVO REPLY ── */
 .pc-reply {
-  position: absolute; left: 14px; right: 14px; bottom: 154px; z-index: 35;
-  background: rgba(8,6,4,0.92); backdrop-filter: blur(14px);
-  border: 1px solid rgba(200,133,74,0.35); border-radius: 6px 14px 14px 14px;
-  padding: 10px 14px; display: none;
-  max-height: 185px; overflow-y: auto;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  position: absolute;
+  left: 14px;
+  right: 72px;
+  bottom: calc(210px + var(--safe-bottom));
+  z-index: 35;
+  background: rgba(8,6,4,0.86);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(200,133,74,0.38);
+  border-radius: 7px 16px 16px 16px;
+  padding: 10px 13px;
+  display: none;
+  max-height: 162px;
+  overflow-y: auto;
+  box-shadow: 0 14px 38px rgba(0,0,0,0.46);
 }
 .pc-tag { font-size:9px;color:var(--copper);font-weight:800;letter-spacing:0.1em;margin-bottom:5px; }
 .pc-txt { font-size:12.5px;color:rgba(245,237,208,0.94);line-height:1.55;word-break:break-word; }
@@ -204,57 +334,123 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
 
 /* ── PRODUCT CARD ── */
 .product-card {
-  position: absolute; left: 14px; right: 60px; bottom: 84px; z-index: 36;
-  background: rgba(8,6,4,0.25); backdrop-filter: blur(6px);
-  border: 1px solid rgba(200,133,74,0.2); border-radius: 10px;
-  padding: 7px 10px; display: flex; align-items: center; gap: 8px;
+  position: absolute;
+  left: 14px;
+  right: 70px;
+  bottom: calc(84px + var(--safe-bottom));
+  z-index: 36;
+  background: linear-gradient(135deg, rgba(255,247,228,0.96), rgba(236,211,170,0.9));
+  color: #1b120b;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.38);
+  border-radius: 16px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-shadow: 0 16px 38px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.5);
+  transition: opacity .18s ease, transform .18s ease;
 }
 .pc-info{flex:1;}
-.pc-name{font-size:12px;font-weight:900;color:white;line-height:1.2;}
+.pc-name{font-size:12px;font-weight:950;color:#1b120b;line-height:1.2;}
 .pc-price-row{display:flex;align-items:baseline;gap:4px;margin-top:3px;}
-.pc-price{font-size:16px;font-weight:900;color:var(--copper);}
-.pc-unit{font-size:10px;color:#C47A35;font-weight:600;}
+.pc-price{font-size:16px;font-weight:950;color:#9B2A13;}
+.pc-unit{font-size:10px;color:#74533A;font-weight:800;}
 .pc-cta {
-  background:linear-gradient(135deg,var(--copper),#8B5E30);
-  color:white;border:none;padding:7px 12px;border-radius:8px;
-  font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0;
-  box-shadow:0 3px 12px rgba(200,133,74,0.4);
+  background:linear-gradient(135deg,#B72014,#7A160F);
+  color:white;
+  border:none;
+  padding:8px 12px;
+  border-radius:11px;
+  font-size:11px;
+  font-weight:950;
+  cursor:pointer;
+  flex-shrink:0;
+  box-shadow:0 8px 18px rgba(183,32,20,0.32);
 }
 
 /* ── PRODUCT STRIP ── */
-.product-strip{position:absolute;bottom:132px;left:0;right:0;z-index:34;padding:0 14px;}
-.ps-scroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
+.product-strip{
+  position:absolute;
+  bottom:calc(146px + var(--safe-bottom));
+  left:0;
+  right:0;
+  z-index:34;
+  padding:0 14px;
+}
+.ps-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}
 .ps-scroll::-webkit-scrollbar{display:none;}
 .ps-chip {
-  flex-shrink:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,0.08);border-radius:999px;
-  padding:5px 11px;cursor:pointer;transition:all 0.2s;
-  display:flex;align-items:center;gap:5px;
+  flex:0 0 auto;
+  min-width:132px;
+  max-width:168px;
+  background:rgba(255,247,228,0.12);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,247,228,0.14);
+  border-radius:15px;
+  padding:8px 9px;
+  cursor:pointer;
+  transition:all 0.18s;
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr);
+  grid-template-areas:"icon name" "icon price";
+  align-items:center;
+  gap:3px 7px;
+  color:#fff;
+  box-shadow:0 10px 28px rgba(0,0,0,.28);
 }
-.ps-chip.active{border-color:rgba(200,133,74,0.5);background:rgba(200,133,74,0.15);}
-.ps-e{font-size:13px;} .ps-n{font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);}
-.ps-p{font-size:10px;color:var(--copper);font-weight:800;}
+.ps-chip.active{border-color:rgba(224,164,103,0.7);background:rgba(200,133,74,0.20);transform:translateY(-1px);}
+.ps-e{font-size:13px;}
+.ps-n{grid-area:name;font-size:10.5px;font-weight:900;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ps-p{grid-area:price;font-size:11px;color:var(--copper-2);font-weight:950;}
+
+body.quick-open .product-strip,
+body.quick-open .product-card{
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(10px);
+}
 
 /* ── QUICK CHIPS ── */
-/* Premium mini-popup: anchored near the right Chat action, away from product strip/card. */
-.quick-chips{position:absolute;right:62px;bottom:252px;left:auto;z-index:38;display:none;flex-direction:column;align-items:stretch;gap:7px;width:206px;padding:11px;border-radius:18px;background:linear-gradient(180deg,rgba(18,13,9,0.96),rgba(6,5,4,0.92));backdrop-filter:blur(18px);border:1px solid rgba(200,133,74,0.38);box-shadow:0 16px 38px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);}
-.quick-chips::after{content:"";position:absolute;right:-7px;top:50px;width:12px;height:12px;transform:rotate(45deg);background:rgba(16,12,8,0.96);border-right:1px solid rgba(200,133,74,0.34);border-top:1px solid rgba(200,133,74,0.34);}
-.quick-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 6px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:3px;}
+/* Intent chips: live-selling shortcuts that replace product tray while open. */
+.quick-chips{
+  position:absolute;
+  left:14px;
+  right:14px;
+  bottom:calc(148px + var(--safe-bottom));
+  z-index:45;
+  display:none;
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+  width:auto;
+  padding:10px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  border-radius:18px;
+  background:linear-gradient(180deg,rgba(18,13,9,0.94),rgba(6,5,4,0.90));
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(200,133,74,0.38);
+  box-shadow:0 16px 38px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.quick-chips::-webkit-scrollbar{display:none;}
+.quick-chips::after{display:none;}
+.quick-panel-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 2px;border-right:1px solid rgba(255,255,255,0.08);margin-right:2px;}
 .quick-panel-title{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--copper);}
-.quick-panel-sub{font-size:9px;font-weight:700;color:rgba(245,237,208,0.54);}
-.qchip{background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.075);color:rgba(245,237,208,0.96);font-size:12px;font-weight:850;padding:9px 10px;border-radius:12px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-height:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035);}
+.quick-panel-sub{font-size:9px;font-weight:700;color:rgba(245,237,208,0.54);white-space:nowrap;}
+.qchip{flex:0 0 auto;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.085);color:rgba(245,237,208,0.96);font-size:12px;font-weight:900;padding:9px 11px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-height:38px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035);}
 .qchip:active{transform:scale(0.98);} 
 .qchip:hover{border-color:rgba(200,133,74,0.46);background:rgba(200,133,74,0.11);} 
 @media (max-width: 420px){
-  .quick-chips{right:58px;bottom:248px;width:194px;padding:10px;gap:6px;}
-  .qchip{font-size:11.5px;padding:8px 10px;min-height:38px;}
+  .quick-chips{left:10px;right:10px;bottom:calc(146px + var(--safe-bottom));padding:9px;gap:7px;}
+  .qchip{font-size:11.5px;padding:8px 10px;min-height:36px;}
 }
 
 /* ── BOTTOM BAR ── */
-.bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:30;background:rgba(5,4,2,0.97);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,0.06);padding:8px 14px 22px;display:flex;align-items:center;gap:8px;}
+.bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:44;background:linear-gradient(180deg,rgba(5,4,2,0.54),rgba(5,4,2,0.97));backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,0.07);padding:8px 14px calc(10px + var(--safe-bottom));display:flex;align-items:center;gap:8px;}
 .cart-fab{width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:white;font-size:18px;cursor:pointer;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;}
 .cart-badge{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--red);font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;}
-.msg-input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:999px;padding:12px 16px;font-size:13px;color:white;outline:none;}
+.msg-input{flex:1;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:12px 16px;font-size:13px;color:white;outline:none;min-width:0;}
 .msg-input::placeholder{color:rgba(255,255,255,0.25);}
 .send-btn{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--copper),#8B5E30);color:white;font-size:16px;cursor:pointer;flex-shrink:0;box-shadow:0 4px 14px rgba(200,133,74,0.4);}
 
@@ -267,7 +463,7 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
   position: fixed;
   inset: 0;
   z-index: 600;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 22px 16px;
@@ -276,13 +472,14 @@ body { background: #000; color: white; font-family: -apple-system, BlinkMacSyste
     rgba(0,0,0,0.78);
   backdrop-filter: blur(12px);
 }
+body.lead-gate-open .lead-modal { display: flex; }
 body.lead-ready .lead-modal { display: none; }
-body.lead-locked .bottom-bar,
-body.lead-locked .quick-chips,
-body.lead-locked .product-card,
-body.lead-locked .product-strip {
+body.lead-gate-open .bottom-bar,
+body.lead-gate-open .quick-chips,
+body.lead-gate-open .product-card,
+body.lead-gate-open .product-strip {
   pointer-events: none;
-  opacity: 0.32;
+  opacity: 0.42;
   filter: blur(1px);
 }
 .lead-card {
@@ -430,6 +627,8 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     box-shadow: 0 0 80px rgba(0,0,0,0.72);
     background: #050505;
   }
+  .chat-bubbles{bottom:calc(296px + var(--safe-bottom));}
+  .live-hint{bottom:calc(384px + var(--safe-bottom));}
 }
 .pc-cta:disabled { opacity: .52; cursor: not-allowed; filter: grayscale(.25); }
 .toast {
@@ -458,11 +657,11 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </style>
 </head>
-<body class="lead-locked">
+<body class="lead-preview">
 <div class="stage" id="stage">
 
   <!-- BG shop -->
-  <div class="bg-img" style="background-image:url('/assets/bg-shop.webp);"></div>
+  <div class="bg-img" style="background-image:url('/assets/pakcivo-premium-live-bg.webp'), url('/assets/bg-shop.webp');"></div>
 
   <!-- Pak Civo video loop -->
   <video class="host-video" id="hostVideo"
@@ -491,9 +690,20 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
       <div class="viewer-pill">👁 <span id="viewerCount">128</span></div>
     </div>
     <div class="brand-pill">
-      <div class="brand-av"><img class="ui-icon-img" src="/icons/pakcivo-best-products.png" alt="CIVO MEAT"></div>
-      <span style="font-size:11px;font-weight:800">civomeat</span>
+      <div class="brand-av"><img class="ui-icon-img" src="/civo-logo.png" alt="CIVO MEAT"></div>
+      <div class="brand-copy">
+        <div class="brand-title">CIVO MEAT</div>
+        <div class="brand-sub">Premium Pork Live</div>
+      </div>
     </div>
+  </div>
+  <div class="trust-hooks" aria-hidden="true">
+    <div class="trust-hook">🔥 Favorit sejak 2016</div>
+    <div class="trust-hook">🚚 Jakarta & Tangerang</div>
+  </div>
+  <div class="live-hint" aria-hidden="true">
+    <div class="live-hint-dot"></div>
+    <div class="live-hint-text">Bilang mau masak apa. Pak Civo bantu pilihkan produk yang paling cocok.</div>
   </div>
 
   <!-- CHAT BUBBLES -->
@@ -547,12 +757,15 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
-    <div class="quick-panel-head"><div><div class="quick-panel-title">Quick Chat</div><div class="quick-panel-sub">5 produk favorit</div></div></div>
-    <div class="qchip" onclick="sendProductQuick('samcan-lokal-1kg')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Samcan Lokal</div>
-    <div class="qchip" onclick="sendProductQuick('babi-giling-500g')"><img class="qicon" src="/icons/pakcivo-product-catalog.png" alt=""> Babi Giling</div>
-    <div class="qchip" onclick="sendProductQuick('paikut-sop-500g')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Paikut Sop</div>
-    <div class="qchip" onclick="sendProductQuick('kapsim-1kg')"><img class="qicon" src="/icons/pakcivo-recommendation.png" alt=""> Kapsim</div>
-    <div class="qchip" onclick="sendProductQuick('samcan-import-1kg')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Samcan Import</div>
+    <div class="quick-panel-head"><div><div class="quick-panel-title">Quick Chat</div><div class="quick-panel-sub">pilih kebutuhan</div></div></div>
+    <div class="qchip" onclick="sendQ('Produk paling laris CIVO MEAT apa saja?')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Best Seller</div>
+    <div class="qchip" onclick="sendQ('Saya cari samcan. Ada pilihan apa saja?')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Cari Samcan</div>
+    <div class="qchip" onclick="sendQ('Saya mau BBQ. Bantu pilihkan produk yang cocok.')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Untuk BBQ</div>
+    <div class="qchip" onclick="sendQ('Saya mau masak sop atau bakut. Produk apa yang cocok?')"><img class="qicon" src="/icons/pakcivo-recommendation.png" alt=""> Untuk Sop</div>
+    <div class="qchip" onclick="sendQ('Promo hari ini apa?')"><img class="qicon" src="/icons/pakcivo-promo-discount.png" alt=""> Promo</div>
+    <div class="qchip" onclick="sendQ('Cek pengiriman Jakarta atau Tangerang.')"><img class="qicon" src="/icons/pakcivo-chilled-delivery.png" alt=""> Pengiriman</div>
+    <div class="qchip" onclick="sendQ('Saya mau order. Bantu buatkan checkout Shopify.')"><img class="qicon" src="/icons/pakcivo-cart-checkout.png" alt=""> Mau Order</div>
+    <div class="qchip" onclick="sendQ('Bantu pilihkan daging berdasarkan masakan saya.')"><img class="qicon" src="/icons/pakcivo-chat-host.png" alt=""> Bantu Pilih</div>
   </div>
 
   <!-- BOTTOM BAR -->
@@ -560,7 +773,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     <button class="cart-fab" onclick="showCart()" aria-label="Buka keranjang">
       <img class="ui-icon-img" src="/icons/pakcivo-cart-checkout.png" alt=""><div class="cart-badge" id="cartBadge">0</div>
     </button>
-    <input class="msg-input" id="msgInput" placeholder="Tanya Pak Civo..." disabled/>
+    <input class="msg-input" id="msgInput" placeholder="Mau masak apa hari ini?"/>
     <button class="send-btn" onclick="send()">➤</button>
   </div>
 
@@ -569,8 +782,8 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <div class="lead-modal" id="leadModal" role="dialog" aria-modal="true">
     <form class="lead-card" id="leadForm" autocomplete="on">
       <div class="lead-kicker">PAK CIVO LIVE</div>
-      <h1>Mau dibantu pilih daging yang paling cocok?</h1>
-      <p>Isi nama dan WhatsApp agar Pak Civo bisa bantu rekomendasi produk, hitung kebutuhan, dan buatkan checkout Shopify.</p>
+      <h1>Simpan data untuk checkout cepat</h1>
+      <p>Isi nama dan WhatsApp saat ingin order, cek ongkir, atau lanjut checkout. Pak Civo tetap bisa bantu rekomendasi dulu.</p>
 
       <div class="lead-row">
         <label for="leadName">Nama</label>
@@ -583,7 +796,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
       </div>
       <div class="turnstile-box" id="turnstileBox"></div>
 
-      <button class="lead-submit" id="leadSubmit" type="submit">Mulai Tanya Pak Civo</button>
+      <button class="lead-submit" id="leadSubmit" type="submit">Lanjut Checkout Cepat</button>
       <div class="lead-error" id="leadError"></div>
       <div class="lead-note">Nomor hanya untuk follow-up order. Tidak spam.</div>
     </form>
@@ -594,7 +807,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v5.0.9-catalog-wide-shopify-search";
+const APP_VERSION = "v6.0.0-mobile-live-commerce";
 console.log("Tokopakcivo", APP_VERSION);
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
@@ -683,7 +896,9 @@ let likeVal=2347,chipsVisible=false;
 
 const LEAD_STORAGE_KEY = "pakcivoLeadV1";
 const CART_STORAGE_KEY = "pakcivoCartV2";
+const LEAD_FREE_MESSAGE_LIMIT = 2;
 let currentLead = null;
+let anonymousMessageCount = 0;
 let PUBLIC_CONFIG = { captchaEnabled:false, turnstileSiteKey:"", clarityProjectId:"" };
 let turnstileToken = "";
 let turnstileWidgetId = null;
@@ -761,16 +976,16 @@ function safeJSONParse(value){
 }
 
 function showLeadGate(){
-  document.body.classList.add("lead-locked");
+  document.body.classList.add("lead-gate-open");
   document.body.classList.remove("lead-ready");
   const modal=document.getElementById("leadModal");
   if(modal) modal.style.display="flex";
   const input=document.getElementById("msgInput");
-  if(input) input.disabled=true;
+  if(input) input.disabled=false;
 }
 
 function hideLeadGate(){
-  document.body.classList.remove("lead-locked");
+  document.body.classList.remove("lead-gate-open");
   document.body.classList.add("lead-ready");
   const modal=document.getElementById("leadModal");
   if(modal) modal.style.display="none";
@@ -783,6 +998,22 @@ function ensureLeadReady(){
   showLeadGate();
   setTimeout(()=>document.getElementById("leadName")?.focus(),120);
   return false;
+}
+
+function shouldOpenLeadForChat(text){
+  if(currentLead && currentLead.name && currentLead.whatsapp) return false;
+  const value=String(text||"").toLowerCase();
+  if(anonymousMessageCount >= LEAD_FREE_MESSAGE_LIMIT) return true;
+  return /checkout|check\s*out|beli|order|pesan|keranjang|cart|ambil|alamat|ongkir|kirim|whatsapp|wa admin|bayar|qris/.test(value);
+}
+
+function showSoftOpeningGreeting(){
+  const rb=document.getElementById("pcReply");
+  const pc=document.getElementById("pcText");
+  if(!rb || !pc) return;
+  const greeting="Halo Kak, saya Pak Civo. Tulis mau masak apa, nanti saya bantu pilihkan daging yang paling cocok.";
+  pc.innerHTML=escapeHtml(greeting);
+  rb.style.display="block";
 }
 
 function setLeadReady(lead, opts){
@@ -899,7 +1130,14 @@ function initLeadGate(){
   if(stored && stored.name && stored.whatsapp){
     setLeadReady(stored,{silent:true});
   }else{
-    showLeadGate();
+    currentLead=null;
+    document.body.classList.remove("lead-ready","lead-gate-open");
+    document.body.classList.add("lead-preview");
+    const modal=document.getElementById("leadModal");
+    if(modal) modal.style.display="none";
+    const input=document.getElementById("msgInput");
+    if(input) input.disabled=false;
+    showSoftOpeningGreeting();
   }
 }
 
@@ -1425,7 +1663,7 @@ const fakeMsgs=[
   {n:"Andre",c:"#E67E22",m:"Mau 2kg samcan lokal! ❤️"},
   {n:"Mega",c:"#16A085",m:"CIVO MEAT no.1! 🏆"},
   {n:"Reza",c:"#C0392B",m:"Babi hong pake samcan on ya?"},
-  {n:"Titi",c:"#9B59B6",m:"❤️❤️ dagingnya selalu segar!"},
+  {n:"Titi",c:"#9B59B6",m:"❤️❤️ vacuum frozen-nya rapi!"},
   {n:"Hendra",c:"#F39C12",m:"Kapsimnya ada gak pak?"},
   {n:"Sari",c:"#1ABC9C",m:"Udah order! Ditunggu 🎉"},
 ];
@@ -1476,11 +1714,15 @@ function fmt(t, extraCheckoutUrl){
 }
 async function send(){
   if(isLoading)return;
-  if(!ensureLeadReady())return;
   stopVoice();
   try{getCtx().resume();}catch(e){}
   const inp=document.getElementById("msgInput");
   const text=inp.value.trim();if(!text)return;
+  if(shouldOpenLeadForChat(text)){
+    showLeadGate();
+    setTimeout(()=>document.getElementById("leadName")?.focus(),120);
+    return;
+  }
   inp.value="";toggleChips(false);
 
   const ub=document.createElement("div");ub.className="cbubble";
@@ -1493,7 +1735,8 @@ async function send(){
   rb.style.display="block";
   try{playQuickAckIfReady();}catch(e){}
   messages.push({role:"user",content:text});
-  trackEvent("chat_send", {length:text.length});
+  if(!currentLead) anonymousMessageCount++;
+  trackEvent("chat_send", {length:text.length, hasLead: !!currentLead});
   isLoading=true;
 
   try{
@@ -1588,16 +1831,15 @@ function sendProductQuick(productId){
 }
 
 function sendQ(t){
-  if(!ensureLeadReady())return;
   toggleChips(false);
   document.getElementById("msgInput").value=t;
   send();
 }
 function toggleChips(force){
-  if(!currentLead && force!==false){showLeadGate();return;}
   chipsVisible=force!==undefined?force:!chipsVisible;
   const panel=document.getElementById("quickChips");
   panel.style.display=chipsVisible?"flex":"none";
+  document.body.classList.toggle("quick-open", chipsVisible);
   const chatAction=document.getElementById("chatQuickAction");
   if(chatAction) chatAction.classList.toggle("active", chipsVisible);
 }
@@ -1810,7 +2052,21 @@ document.addEventListener("click", (ev)=>{
   toggleChips(false);
 });
 document.getElementById("msgInput").addEventListener("keydown",e=>{if(e.key==="Enter")send();});
-document.getElementById("msgInput").addEventListener("focus",()=>{ ensureLeadReady(); });
+document.getElementById("msgInput").addEventListener("focus",()=>{ trackEvent("input_focus", {hasLead: !!currentLead}); });
+const INPUT_PLACEHOLDERS=[
+  "Cari samcan, paikut, bacon...",
+  "Mau BBQ untuk berapa orang?",
+  "Mau masak apa hari ini?",
+  "Tanya harga atau rekomendasi..."
+];
+let placeholderIndex=0;
+setInterval(()=>{
+  const input=document.getElementById("msgInput");
+  if(input && !input.value && document.activeElement!==input){
+    placeholderIndex=(placeholderIndex+1)%INPUT_PLACEHOLDERS.length;
+    input.placeholder=INPUT_PLACEHOLDERS[placeholderIndex];
+  }
+},3800);
 setInterval(()=>{
   const v=78+Math.floor(Math.random()*102);
   document.getElementById("viewerCount").textContent=v.toLocaleString("id");
