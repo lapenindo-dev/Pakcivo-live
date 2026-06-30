@@ -1,5 +1,5 @@
 // api/shopify-products.js
-// v6.0.3 — catalog-wide Shopify fallback search with product URL links for Pak Civo Live
+// v6.0.6 — Shopify catalog search with variant/product images locked for Pak Civo Live
 
 function normalizeText(value) {
   return String(value || "")
@@ -117,6 +117,14 @@ function rankProducts(products, rawQuery, limit = 20) {
 function mapProducts(data) {
   return data.data.products.edges.map((edge) => {
     const product = edge.node;
+    const images = (product.images?.edges || [])
+      .map((imageEdge) => ({
+        url: imageEdge.node?.url || "",
+        altText: imageEdge.node?.altText || ""
+      }))
+      .filter((image) => image.url);
+    const featuredImageUrl = product.featuredImage?.url || images[0]?.url || null;
+
     return {
       id: product.id,
       title: product.title,
@@ -125,7 +133,12 @@ function mapProducts(data) {
       description: product.description,
       tags: product.tags || [],
       productType: product.productType || "",
-      image: product.featuredImage?.url || null,
+      image: featuredImageUrl,
+      featuredImage: product.featuredImage ? {
+        url: product.featuredImage.url || "",
+        altText: product.featuredImage.altText || ""
+      } : null,
+      images,
       variants: product.variants.edges.map((variantEdge) => {
         const variant = variantEdge.node;
         return {
@@ -133,7 +146,9 @@ function mapProducts(data) {
           title: variant.title,
           availableForSale: variant.availableForSale,
           price: Number(variant.price.amount),
-          currencyCode: variant.price.currencyCode
+          currencyCode: variant.price.currencyCode,
+          image: variant.image?.url || null,
+          imageAltText: variant.image?.altText || ""
         };
       })
     };
@@ -153,6 +168,11 @@ async function fetchShopifyProducts({ shop, token, version, shopifyQuery, first 
             tags
             productType
             featuredImage { url altText }
+            images(first: 10) {
+              edges {
+                node { url altText }
+              }
+            }
             variants(first: 10) {
               edges {
                 node {
@@ -160,6 +180,7 @@ async function fetchShopifyProducts({ shop, token, version, shopifyQuery, first 
                   title
                   availableForSale
                   price { amount currencyCode }
+                  image { url altText }
                 }
               }
             }
