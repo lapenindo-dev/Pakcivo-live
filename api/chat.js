@@ -1,9 +1,11 @@
 // api/chat.js
-// v6.0.0 — mobile live commerce UX + catalog-wide Shopify fallback search
+// v6.0.4 — answer stability + Shopify-linked catalog
 // Vercel Serverless Function — Pak Civo AI + Shopify Storefront API
 // CommonJS (Node.js 20, tanpa "type":"module")
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+module.exports.config = { maxDuration: 30 };
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_STOREFRONT_ACCESS_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
@@ -58,8 +60,6 @@ const MAX_HISTORY = 6;
 
 const MODELS = [
   "gemini-2.0-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash",
   "gemini-1.5-flash",
 ];
 
@@ -194,7 +194,8 @@ function productFromCatalogHint(hint) {
   return {
     id: hint.id || hint.variantId || hint.name,
     title: hint.shopifyName || hint.name,
-    handle: hint.id || normalizeText(hint.name).replace(/\s+/g, "-"),
+    handle: hint.handle || hint.id || normalizeText(hint.name).replace(/\s+/g, "-"),
+    onlineStoreUrl: hint.productUrl || (hint.handle ? `https://civo-meat.myshopify.com/products/${hint.handle}` : ""),
     description: `Produk best seller CIVO MEAT${hint.unit ? ` ${hint.unit}` : ""}.`,
     tags: ["best-seller", ...(Array.isArray(hint.shopifyQueries) ? hint.shopifyQueries : [])],
     productType: "Best Seller",
@@ -628,7 +629,7 @@ function buildCartPermalinkFromCommands(commands) {
   return shop && items ? `https://${shop}/cart/${items}` : "";
 }
 
-async function shopifyGraphQL(query, variables = {}) {
+async function shopifyGraphQL(query, variables = {}, timeoutMs = 6500) {
   if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
     throw new Error("Shopify environment variables belum lengkap.");
   }
@@ -643,7 +644,7 @@ async function shopifyGraphQL(query, variables = {}) {
       },
       body: JSON.stringify({ query, variables }),
     },
-    8000
+    timeoutMs
   );
 
   const data = await response.json();
@@ -720,32 +721,33 @@ async function runSingleShopifyProductSearch(queryText, first = 20) {
 }
 
 async function fetchCatalogProducts() {
-  const cacheKey = "v509:catalog:250";
+  const cacheKey = "v604:catalog:160";
   const cached = getCachedProducts(cacheKey);
   if (cached) return cached;
-  const products = await runSingleShopifyProductSearch("", 250);
+  const products = await runSingleShopifyProductSearch("", 160);
   setCachedProducts(cacheKey, products);
   return products;
 }
 
 async function searchShopifyProducts(rawQuery) {
   const queryText = String(rawQuery || "").trim();
-  const cacheKey = `v509:${queryText.toLowerCase()}`;
+  const cacheKey = `v604:${queryText.toLowerCase()}`;
   const cached = getCachedProducts(cacheKey);
   if (cached) return cached;
 
-  const aliases = shopifySearchAliases(queryText);
+  const aliases = shopifySearchAliases(queryText).slice(0, 6);
   let products = [];
 
-  for (const q of aliases) {
-    try {
-      const result = await runSingleShopifyProductSearch(q, 20);
-      products = mergeProductLists(products, result);
-      if (products.length >= 12 && aliases.length > 2) break;
-    } catch (error) {
-      console.warn("Shopify alias search skipped:", q, error.message);
+  const aliasResults = await Promise.allSettled(
+    aliases.map((q) => runSingleShopifyProductSearch(q, 16))
+  );
+  aliasResults.forEach((result, idx) => {
+    if (result.status === "fulfilled") {
+      products = mergeProductLists(products, result.value);
+    } else {
+      console.warn("Shopify alias search skipped:", aliases[idx], result.reason?.message || result.reason);
     }
-  }
+  });
 
   let ranked = rankProductsForQuery(products, queryText, 12);
 
@@ -863,6 +865,7 @@ function buildProductContext(products) {
         product.guaranteedBestSeller || product.catalogHint ? "   Catatan: produk ini termasuk 5 best seller display Pak Civo; jangan jawab tidak ada kecuali availableForSale=false." : "",
         product.tags?.length ? `   Tags: ${product.tags.join(", ")}` : "   Tags: -",
         `   Handle: ${product.handle}`,
+        product.onlineStoreUrl ? `   LinkProduk: ${product.onlineStoreUrl}` : "   LinkProduk: -",
         `   Varian:\n    ${variants}`,
       ].join("\n");
     })
@@ -993,7 +996,7 @@ const FAQ_TEMPLATES = [
   // ── HALAL ──
   {
     keywords: ["halal"],
-    reply: "Produk CIVO MEAT adalah daging babi Kak, jadi non-halal ya. Kita spesialis daging babi premium sejak 2016 🥩",
+    reply: "Produk CIVO MEAT adalah daging babi Kak, jadi non-halal ya. Kita spesialis daging babi premium sejak 2017 🥩",
   },
 
   // ── WHATSAPP ──
@@ -1030,7 +1033,7 @@ function matchFAQ(userMessage) {
 // ─────────────────────────────────────────────────────────────
 
 function buildSystemPrompt(productContext) {
-  return `Kamu adalah PAK CIVO 👨‍🍳, AI sales assistant CIVO MEAT, penjual daging babi premium sejak 2016.
+  return `Kamu adalah PAK CIVO 👨‍🍳, AI sales assistant CIVO MEAT, penjual daging babi premium sejak 2017.
 
 BAHASA & GAYA:
 - Pakai Bahasa Indonesia santai, profesional, hangat.
@@ -1055,6 +1058,7 @@ ATURAN MENJAWAB PRODUK:
 ATURAN CHECKOUT SHOPIFY:
 - Checkout sekarang harus lewat Shopify, bukan WhatsApp admin.
 - Jika customer baru tertarik, tanya konfirmasi dulu: "Mau Pak Civo buatkan checkout Shopify sekarang, Kak?"
+- Produk katalog di layar punya tombol ↗ untuk buka halaman produk Shopify dan tombol + untuk buat keranjang Shopify.
 - Jika customer sudah jelas konfirmasi beli/checkout/ambil/masukkan/iya/ok/boleh dan produk sudah jelas, sisipkan command internal persis format:
   <<SHOPIFY_CART|VARIANT_ID|QTY>>
 - Ganti VARIANT_ID dengan variantId dari DATA PRODUK SHOPIFY. Jika variantId tertulis "belum_terhubung" atau kosong, jangan buat command checkout; arahkan customer klik tombol + Keranjang/product card.
@@ -1120,10 +1124,10 @@ async function callGemini(systemPrompt, contents) {
           contents,
           generationConfig: {
             temperature: 0.38,
-            maxOutputTokens: 300,
+            maxOutputTokens: 620,
           },
         }),
-      }, 9000);
+      }, 8000);
 
       if (response.status === 503 || response.status === 429) {
         console.warn(`Model ${model} unavailable (${response.status}), trying next...`);
@@ -1137,9 +1141,17 @@ async function callGemini(systemPrompt, contents) {
       }
 
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const candidate = data?.candidates?.[0];
+      const text = Array.isArray(candidate?.content?.parts)
+        ? candidate.content.parts.map((part) => part?.text || "").join("").trim()
+        : "";
 
-      if (text) return text;
+      if (text) {
+        if (candidate?.finishReason === "MAX_TOKENS" && !/[.!?)]\s*$/.test(text)) {
+          return `${text.replace(/\s+\S*$/, "").trim()}. Detail lengkapnya saya tampilkan di layar ya Kak.`;
+        }
+        return text;
+      }
     } catch (error) {
       console.error(`Model ${model} fetch error:`, error.message);
       continue;

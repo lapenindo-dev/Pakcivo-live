@@ -1,5 +1,5 @@
 // api/shopify-products.js
-// v5.0.9 — catalog-wide Shopify fallback search for Pak Civo Live
+// v6.0.3 — catalog-wide Shopify fallback search with product URL links for Pak Civo Live
 
 function normalizeText(value) {
   return String(value || "")
@@ -121,6 +121,7 @@ function mapProducts(data) {
       id: product.id,
       title: product.title,
       handle: product.handle,
+      onlineStoreUrl: product.onlineStoreUrl || (product.handle ? `https://${process.env.SHOPIFY_PUBLIC_STORE_DOMAIN || process.env.SHOPIFY_STORE_DOMAIN || "civo-meat.myshopify.com"}/products/${product.handle}` : ""),
       description: product.description,
       tags: product.tags || [],
       productType: product.productType || "",
