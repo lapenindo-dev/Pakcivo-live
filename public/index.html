@@ -519,6 +519,7 @@ body.lead-gate-open .product-strip {
   filter: blur(1px);
 }
 .lead-card {
+  position: relative;
   width: min(420px, 100%);
   background: rgba(8,6,4,0.94);
   border: 1px solid rgba(200,133,74,0.46);
@@ -526,6 +527,39 @@ body.lead-gate-open .product-strip {
   padding: 22px 18px 18px;
   box-shadow: 0 20px 70px rgba(0,0,0,0.65);
 }
+.lead-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(245,237,208,0.8);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lead-close:active { transform: scale(0.92); }
+.lead-skip {
+  width: 100%;
+  margin-top: 9px;
+  border: 0;
+  background: transparent;
+  color: rgba(245,237,208,0.66);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lead-skip:active { color: var(--copper); }
 .lead-kicker {
   display: inline-flex;
   align-items: center;
@@ -699,12 +733,8 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <!-- BG shop -->
   <div class="bg-img" style="background-image:url('/assets/pakcivo-premium-live-bg.webp'), url('/assets/bg-shop.webp');"></div>
 
-  <!-- Pak Civo video loop -->
-  <video class="host-video" id="hostVideo"
-    autoplay muted loop playsinline
-    poster="/assets/pakcivo-poster.webp">
-    <source src="/assets/pakcivo-host.mp4" type="video/mp4"/>
-  </video>
+  <!-- Pak Civo visual (static art). Old 1.1MB looping MP4 removed: it was hidden via CSS
+       yet still downloaded on every load, hurting mobile load time with no visible benefit. -->
   <div class="host-art" aria-hidden="true"></div>
 
   <!-- Fades -->
@@ -802,16 +832,17 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     <button class="cart-fab" onclick="showCart()" aria-label="Buka keranjang">
       <img class="ui-icon-img" src="/icons/pakcivo-cart-checkout.png" alt=""><div class="cart-badge" id="cartBadge">0</div>
     </button>
-    <input class="msg-input" id="msgInput" placeholder="Mau masak apa hari ini?"/>
-    <button class="send-btn" onclick="send()">➤</button>
+    <input class="msg-input" id="msgInput" placeholder="Mau masak apa hari ini?" aria-label="Tulis pesan ke Pak Civo"/>
+    <button class="send-btn" onclick="send()" aria-label="Kirim pesan">➤</button>
   </div>
 
 
   <!-- LEAD GATE -->
-  <div class="lead-modal" id="leadModal" role="dialog" aria-modal="true">
+  <div class="lead-modal" id="leadModal" role="dialog" aria-modal="true" aria-labelledby="leadTitle">
     <form class="lead-card" id="leadForm" autocomplete="on">
+      <button type="button" class="lead-close" id="leadCloseBtn" aria-label="Tutup dan lihat-lihat dulu" onclick="dismissLeadGate()">✕</button>
       <div class="lead-kicker">PAK CIVO LIVE</div>
-      <h1>Simpan data untuk checkout cepat</h1>
+      <h1 id="leadTitle">Simpan data untuk checkout cepat</h1>
       <p>Isi nama dan WhatsApp saat ingin order, cek ongkir, atau lanjut checkout. Pak Civo tetap bisa bantu rekomendasi dulu.</p>
 
       <div class="lead-row">
@@ -826,6 +857,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
       <div class="turnstile-box" id="turnstileBox"></div>
 
       <button class="lead-submit" id="leadSubmit" type="submit">Lanjut Checkout Cepat</button>
+      <button type="button" class="lead-skip" id="leadSkipBtn" onclick="dismissLeadGate()">Nanti saja, lihat-lihat dulu</button>
       <div class="lead-error" id="leadError"></div>
       <div class="lead-note">Nomor hanya untuk follow-up order. Tidak spam.</div>
     </form>
@@ -927,13 +959,13 @@ const PRODUCTS = [
 ];
 let curProd=0,cartCount=0,isLoading=false,cartItems=[],cartLines=[],latestCheckoutUrl="";
 let messages=[{role:"assistant",content:"Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik!"}];
-let likeVal=2347,chipsVisible=false;
 
 const LEAD_STORAGE_KEY = "pakcivoLeadV1";
 const CART_STORAGE_KEY = "pakcivoCartV2";
 const LEAD_FREE_MESSAGE_LIMIT = 2;
 let currentLead = null;
 let anonymousMessageCount = 0;
+let leadGateDismissed = false;
 let PUBLIC_CONFIG = { captchaEnabled:false, turnstileSiteKey:"", clarityProjectId:"" };
 let turnstileToken = "";
 let turnstileWidgetId = null;
@@ -1038,9 +1070,26 @@ function ensureLeadReady(){
 function shouldOpenLeadForChat(text){
   if(currentLead && currentLead.name && currentLead.whatsapp) return false;
   const value=String(text||"").toLowerCase();
-  if(anonymousMessageCount >= LEAD_FREE_MESSAGE_LIMIT) return true;
-  return /checkout|check\s*out|beli|order|pesan|keranjang|cart|ambil|alamat|ongkir|kirim|whatsapp|wa admin|bayar|qris/.test(value);
+  // High-intent actions always require contact data, even after dismissing the gate.
+  const checkoutIntent=/checkout|check\s*out|beli|order|pesan|keranjang|cart|ambil|alamat|ongkir|kirim|whatsapp|wa admin|bayar|qris/.test(value);
+  if(checkoutIntent) return true;
+  // Respect a shopper who chose "lihat-lihat dulu": let them keep asking questions.
+  if(leadGateDismissed) return false;
+  return anonymousMessageCount >= LEAD_FREE_MESSAGE_LIMIT;
 }
+
+function dismissLeadGate(){
+  // Let the shopper browse and get recommendations without handing over data yet.
+  // Checkout/order still re-opens the gate via ensureLeadReady()/shouldOpenLeadForChat().
+  leadGateDismissed = true;
+  hideLeadGate();
+  document.body.classList.remove("lead-ready");
+  document.body.classList.add("lead-preview");
+  trackEvent("lead_gate_dismissed", {});
+  const input=document.getElementById("msgInput");
+  if(input) setTimeout(()=>input.focus(), 120);
+}
+window.dismissLeadGate = dismissLeadGate;
 
 function showSoftOpeningGreeting(){
   const rb=document.getElementById("pcReply");
@@ -1533,10 +1582,11 @@ async function hydrateProductsFromShopify(){
     const slots=new Array(PRODUCTS.length).fill(null);
     const all=[];
 
-    // Hydrate each showroom slot from Shopify independently.
-    // This prevents a samcan/paikut/kapsim card from borrowing the wrong product photo.
-    for(let i=0;i<PRODUCTS.length;i++){
-      const base=PRODUCTS[i];
+    // Hydrate each showroom slot from Shopify independently and IN PARALLEL.
+    // Previously these 5 requests ran sequentially (await inside a for-loop), so the
+    // product strip only finished loading after the slowest 5 round-trips stacked up.
+    // Firing them together cuts perceived load time to a single round-trip.
+    await Promise.all(PRODUCTS.map(async (base, i)=>{
       const primaryQuery=(Array.isArray(base.shopifyQueries) && base.shopifyQueries[0]) || base.query || base.name;
       try{
         const candidates=mergeClientProducts(await fetchShopifyProductsForQuery(primaryQuery));
@@ -1553,7 +1603,7 @@ async function hydrateProductsFromShopify(){
       }catch(e){
         console.warn("Shopify slot hydration skipped", base?.name, e);
       }
-    }
+    }));
 
     const foundCount=slots.filter(Boolean).length;
     if(foundCount){
@@ -1857,7 +1907,6 @@ function playAudio(audio, onDone, seq, opts){
 }
 ["touchstart","click"].forEach(ev=>document.addEventListener(ev,()=>{
   try{getCtx().resume();}catch(e){}
-  try{document.getElementById("hostVideo").play();}catch(e){}
   try{preloadVoiceText(VOICE_ACK_TEXT);}catch(e){}
 },{once:true}));
 
@@ -2057,24 +2106,10 @@ async function send(){
 }
 
 
-function sendProductQuick(productId){
-  const idx=PRODUCTS.findIndex(p=>p.id===productId);
-  if(idx>=0){ setProduct(idx); revealProducts("ai_reply_match"); }
-  const p=idx>=0?PRODUCTS[idx]:null;
-  const text=p ? `Cek produk ${p.name}. Produk ini termasuk 5 best seller CIVO MEAT.` : String(productId||"");
-  sendQ(text);
-}
-
 function sendQ(t){
   if(isProductIntent(t)) revealProducts("quick_intent");
   document.getElementById("msgInput").value=t;
   send();
-}
-function toggleChips(force){
-  chipsVisible=true;
-  const panel=document.getElementById("quickChips");
-  if(panel) panel.style.display="flex";
-  document.body.classList.remove("quick-open");
 }
 function cloneCartLines(lines){
   const merged=new Map();
@@ -2260,39 +2295,17 @@ function openAdminWA(){
   const t=encodeURIComponent(`Halo admin CIVO MEAT, saya mau tanya/order dari Pak Civo Live. Produk yang sedang saya lihat: ${p.name} — ${p.price} ${p.unit}`);
   window.open("https://wa.me/6281717179291?text="+t,"_blank","noopener");
 }
-function shareWA(){
-  const p=PRODUCTS[curProd];
-  const t=encodeURIComponent(`🥩 CIVO MEAT LIVE!\n\n${p.name} — ${p.price} ${p.unit}\n\n👉 https://civo-meat.myshopify.com/pages/pakcivolive`);
-  window.open("https://wa.me/?text="+t,"_blank");
-}
-function doLike(e){
-  likeVal+=Math.floor(Math.random()*5)+1;
-  document.getElementById("likeCount").textContent=(likeVal/1000).toFixed(1)+"rb";
-  const likeIcon=document.getElementById("likeIcon");
-  likeIcon.classList.add("liked");
-  likeIcon.style.transform="scale(1.32)";
-  setTimeout(()=>{ likeIcon.style.transform=""; },250);
-  for(let i=0;i<3;i++){
-    setTimeout(()=>{
-      const h=document.createElement("div");h.className="heart-float";
-      h.textContent=["❤️","🧡","💛"][Math.floor(Math.random()*3)];
-      h.style.left=(e.clientX-20+Math.random()*40)+"px";
-      h.style.top=(e.clientY-20)+"px";
-      document.body.appendChild(h);
-      setTimeout(()=>h.remove(),1500);
-    },i*150);
-  }
-}
-console.log("Tokopakcivo", APP_VERSION);
-document.addEventListener("click", (ev)=>{
-  const panel=document.getElementById("quickChips");
-  const trigger=document.getElementById("chatQuickAction");
-  if(!panel || !trigger || !chipsVisible) return;
-  if(panel.contains(ev.target) || trigger.contains(ev.target)) return;
-  toggleChips(false);
-});
 document.getElementById("msgInput").addEventListener("keydown",e=>{if(e.key==="Enter")send();});
 document.getElementById("msgInput").addEventListener("focus",()=>{ trackEvent("input_focus", {hasLead: !!currentLead}); });
+
+// Lead gate is now dismissable: click the dim backdrop or press Escape to browse first.
+const leadModalEl=document.getElementById("leadModal");
+if(leadModalEl){
+  leadModalEl.addEventListener("click",(ev)=>{ if(ev.target===leadModalEl) dismissLeadGate(); });
+}
+document.addEventListener("keydown",(ev)=>{
+  if(ev.key==="Escape" && document.body.classList.contains("lead-gate-open")) dismissLeadGate();
+});
 const INPUT_PLACEHOLDERS=[
   "Cari samcan, paikut, bacon...",
   "Mau BBQ untuk berapa orang?",
@@ -2311,6 +2324,25 @@ setInterval(()=>{
   const v=78+Math.floor(Math.random()*102);
   document.getElementById("viewerCount").textContent=v.toLocaleString("id");
 },8000);
+// A11y: the sidebar actions and quick chips are clickable elements without
+// native button semantics. Make them keyboard-operable (role, focusability, Enter/Space) for screen
+// reader and keyboard users without changing the visual design.
+function enhanceClickableA11y(){
+  const sidebarLabels=["Buka keranjang","Hubungi admin via WhatsApp"];
+  document.querySelectorAll(".sidebar .sact").forEach((el,i)=>{
+    el.setAttribute("role","button");
+    el.setAttribute("tabindex","0");
+    if(!el.getAttribute("aria-label")) el.setAttribute("aria-label", sidebarLabels[i] || "Aksi");
+    el.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); el.click(); } });
+  });
+  document.querySelectorAll(".quick-chips .qchip").forEach((el)=>{
+    el.setAttribute("role","button");
+    el.setAttribute("tabindex","0");
+    if(!el.getAttribute("aria-label")) el.setAttribute("aria-label", (el.textContent||"").trim());
+    el.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); el.click(); } });
+  });
+}
+enhanceClickableA11y();
 loadPublicConfig();
 initLeadGate();
 loadCartState();
