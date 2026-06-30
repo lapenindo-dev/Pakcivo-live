@@ -1,5 +1,5 @@
 // api/chat.js
-// v5.0.9 — catalog-wide Shopify fallback search for all product questions
+// v6.0.0 — mobile live commerce UX + catalog-wide Shopify fallback search
 // Vercel Serverless Function — Pak Civo AI + Shopify Storefront API
 // CommonJS (Node.js 20, tanpa "type":"module")
 
@@ -891,11 +891,11 @@ const FAQ_TEMPLATES = [
   },
   {
     keywords: ["pengiriman", "berapa", "lama"],
-    reply: "Pengiriman same-day (order sebelum jam 14:00) dan instant delivery (sebelum jam 16:00) untuk area Jakarta & Tangerang Kak! Luar area biasanya 1-2 hari kerja 📦",
+    reply: "Pengiriman cepat same-day/instant khusus area Jakarta & Tangerang Kak. Untuk luar area, Pak Civo sarankan cek cabang terdekat atau hubungi admin dulu supaya tidak salah estimasi 📦",
   },
   {
     keywords: ["kirim", "luar", "kota"],
-    reply: "Bisa Kak! Kita kirim pakai packaging vacuum frozen + styrofoam. Untuk luar Jabodetabek, pengiriman lewat ekspedisi yang support frozen. Bandung, Semarang, Surabaya kita ada cabang juga lho! 📦",
+    reply: "Untuk luar Jakarta & Tangerang, jangan langsung checkout dulu Kak. Lebih aman cek cabang terdekat atau hubungi admin CIVO agar pengiriman frozen-nya sesuai area 📦",
   },
   {
     keywords: ["jam", "cutoff"],
@@ -1063,7 +1063,8 @@ ATURAN CHECKOUT SHOPIFY:
 - Setelah command, tulis natural: "Siap Kak, Pak Civo buatkan link checkout Shopify-nya ya."
 
 ATURAN SALES:
-- Bantu customer memilih produk.
+- Bantu customer memilih produk berdasarkan masakan, jumlah orang, dan budget.
+- Untuk upsell, jangan menjual “lebih mahal”; jelaskan “lebih cocok” atau “hasil lebih juicy/premium” jika memang sesuai data produk.
 - Untuk BBQ, tanyakan Korean BBQ atau Western BBQ jika belum jelas.
 - Untuk jumlah orang, bantu estimasi: BBQ 200-250g/orang, masakan berkuah 150-200g/orang.
 - Ajakan checkout harus natural, jangan memaksa.
@@ -1092,7 +1093,7 @@ ATURAN KERAS:
 
 FAKTA CIVO MEAT (gunakan saat customer tanya):
 - 8 cabang: Tangerang, Serpong, JakBar, JakPus, Sunter, Bandung, Semarang, Surabaya.
-- Same-day cutoff 14:00, instant delivery cutoff 16:00 (Jakarta & Tangerang).
+- Pengiriman cepat same-day/instant khusus Jakarta & Tangerang; cutoff same-day 14:00, instant 16:00.
 - Pembayaran: transfer bank, e-wallet, QRIS via checkout Shopify.
 - Tidak ada minimum order.
 - Diskon otomatis: Rp500rb=3%, Rp750rb=4%, Rp1jt=5%.
