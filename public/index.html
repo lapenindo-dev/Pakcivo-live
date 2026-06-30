@@ -49,7 +49,7 @@ button, input { font-family: inherit; }
   inset: 0;
   background-size: cover;
   background-position: center center;
-  filter: brightness(0.72) saturate(1.1) contrast(1.02);
+  filter: brightness(0.84) saturate(1.14) contrast(1.04);
   transform: scale(1.01);
 }
 .bg-img::after {
@@ -57,9 +57,9 @@ button, input { font-family: inherit; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 24%, rgba(224,164,103,0.13), transparent 31%),
-    linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.04) 34%, rgba(0,0,0,0.88) 100%),
-    linear-gradient(90deg, rgba(0,0,0,0.58), transparent 34%, transparent 66%, rgba(0,0,0,0.56));
+    radial-gradient(circle at 50% 21%, rgba(224,164,103,0.22), transparent 30%),
+    linear-gradient(180deg, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.07) 31%, rgba(0,0,0,0.74) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.54), transparent 35%, transparent 66%, rgba(0,0,0,0.54));
 }
 
 /* Clean Pak Civo visual layer; old video is hidden because it contains outdated background copy. */
@@ -67,32 +67,35 @@ button, input { font-family: inherit; }
 .host-art {
   position: absolute;
   left: 50%;
-  bottom: calc(192px + var(--safe-bottom));
-  width: min(78vw, 360px);
-  height: min(45dvh, 390px);
+  top: clamp(124px, 17dvh, 152px);
+  bottom: auto;
+  width: min(132vw, 560px);
+  height: min(62dvh, 560px);
   transform: translateX(-50%);
-  z-index: 5;
+  z-index: 7;
   background-image: url('/assets/pakcivo-host-clean-art.webp');
   background-repeat: no-repeat;
-  background-position: center bottom;
+  background-position: center top;
   background-size: contain;
-  filter: drop-shadow(0 20px 48px rgba(0,0,0,0.78));
+  filter: drop-shadow(0 24px 56px rgba(0,0,0,0.78));
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 82%, transparent 100%);
 }
 .host-art::before {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -14px;
-  width: 78%;
-  height: 22%;
+  bottom: -8px;
+  width: 82%;
+  height: 20%;
   transform: translateX(-50%);
   background: radial-gradient(ellipse at center, rgba(224,164,103,.28), transparent 68%);
   filter: blur(12px);
   z-index: -1;
 }
 @media (max-height: 720px){
-  .host-art{bottom:calc(166px + var(--safe-bottom));height:min(43dvh,350px);}
+  .host-art{top:clamp(112px,15dvh,132px);width:min(136vw,580px);height:min(66dvh,600px);}
 }
 
 /* Gradient bottom fade */
@@ -101,8 +104,8 @@ button, input { font-family: inherit; }
   bottom: 0;
   left: 0;
   right: 0;
-  height: 58%;
-  background: linear-gradient(to top, rgba(0,0,0,0.99) 0%, rgba(0,0,0,0.72) 42%, rgba(0,0,0,0.12) 100%);
+  height: 54%;
+  background: linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.58) 44%, rgba(0,0,0,0.06) 100%);
   z-index: 6;
 }
 .fade-top {
@@ -110,9 +113,9 @@ button, input { font-family: inherit; }
   top: 0;
   left: 0;
   right: 0;
-  height: 25%;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.22) 62%, transparent 100%);
-  z-index: 6;
+  height: 22%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.18) 62%, transparent 100%);
+  z-index: 8;
 }
 
 /* Talking aura on Pak Civo */
@@ -331,8 +334,10 @@ button, input { font-family: inherit; }
   border-radius: 7px 16px 16px 16px;
   padding: 10px 13px;
   display: none;
-  max-height: 118px;
+  max-height: clamp(138px, 24dvh, 210px);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   box-shadow: 0 14px 38px rgba(0,0,0,0.46);
 }
 .pc-tag { font-size:9px;color:var(--copper);font-weight:800;letter-spacing:0.1em;margin-bottom:5px; }
@@ -354,6 +359,7 @@ button, input { font-family: inherit; }
 
 /* ── PRODUCT CARD ── */
 .product-card {
+  cursor:pointer;
   display: none !important;
   position: absolute;
   left: 14px;
@@ -389,6 +395,8 @@ button, input { font-family: inherit; }
   flex-shrink:0;
   box-shadow:0 8px 18px rgba(183,32,20,0.32);
 }
+.pc-link{border:1px solid rgba(120,83,58,.24);background:rgba(255,255,255,.55);color:#7A160F;padding:8px 10px;border-radius:11px;font-size:11px;font-weight:950;cursor:pointer;}
+.pc-link:active{transform:scale(.96);}
 
 /* ── PRODUCT STRIP ── */
 .product-strip{
@@ -414,8 +422,8 @@ button, input { font-family: inherit; }
   cursor:pointer;
   transition:all 0.18s;
   display:grid;
-  grid-template-columns:1fr 28px;
-  grid-template-areas:"photo photo" "name add" "hook add" "price add";
+  grid-template-columns:1fr 28px 28px;
+  grid-template-areas:"photo photo photo" "name link add" "hook link add" "price link add";
   align-items:end;
   gap:3px 7px;
   color:#fff;
@@ -430,6 +438,8 @@ button, input { font-family: inherit; }
 .ps-hook{grid-area:hook;font-size:9.5px;color:rgba(245,237,208,.70);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;}
 .ps-p{grid-area:price;font-size:15px;color:#ffdb96;font-weight:950;line-height:1;}
 .ps-add{grid-area:add;width:28px;height:28px;border:0;border-radius:9px;background:#CC2200;color:white;font-size:18px;font-weight:950;box-shadow:0 8px 16px rgba(204,34,0,.32);}
+.ps-link{grid-area:link;width:28px;height:28px;border:1px solid rgba(255,247,228,.22);border-radius:9px;background:rgba(255,255,255,.10);color:#ffdb96;font-size:13px;font-weight:950;display:flex;align-items:center;justify-content:center;text-decoration:none;}
+.ps-add:active,.ps-link:active{transform:scale(.94);} 
 body.show-products .product-strip{display:block;}
 body.show-products .live-hint{display:none;}
 body.show-products .chat-bubbles{bottom:calc(372px + var(--safe-bottom));}
@@ -716,7 +726,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
       <div class="brand-av"><img class="ui-icon-img" src="/civo-logo.png" alt="CIVO MEAT"></div>
       <div class="brand-copy">
         <div class="brand-title">CIVO MEAT <span class="brand-check">●</span></div>
-        <div class="brand-sub">Favorit sejak 2016</div>
+        <div class="brand-sub">Favorit sejak 2017</div>
       </div>
     </div>
     <div class="top-live-meta">
@@ -725,7 +735,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     </div>
   </div>
   <div class="trust-hooks" aria-hidden="true">
-    <div class="trust-hook">🔥 Favorit sejak 2016</div>
+    <div class="trust-hook">🔥 Favorit sejak 2017</div>
     <div class="trust-hook">🚚 Jakarta & Tangerang</div>
   </div>
   <div class="live-hint" aria-hidden="true">
@@ -757,7 +767,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   </div>
 
   <!-- PRODUCT CARD -->
-  <div class="product-card">
+  <div class="product-card" onclick="openCurrentProduct(event)" role="link" tabindex="0" aria-label="Buka produk terpilih di Shopify" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCurrentProduct(event)}">
     <div class="pc-emoji" id="pcEmoji"><img class="ui-icon-img" src="/icons/pakcivo-best-products.png" alt="Produk"></div>
     <div class="pc-info">
       <div class="pc-name" id="pcName">Samcan Lokal 1kg</div>
@@ -766,6 +776,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
         <div class="pc-unit" id="pcUnit">/ 1 kg</div>
       </div>
     </div>
+    <button id="openProductBtn" type="button" class="pc-link" onclick="openCurrentProduct(event)">Shopify</button>
     <button id="addCartBtn" type="button" class="pc-cta" onclick="addToCart(event)">+ Keranjang</button>
   </div>
 
@@ -825,8 +836,9 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.1-premium-live-commerce";
+const APP_VERSION = "v6.0.5-shopify-catalog-linked";
 console.log("Tokopakcivo", APP_VERSION);
+const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
   bestProducts: "/icons/pakcivo-best-products.png",
@@ -1243,6 +1255,8 @@ function productFromShopifyProduct(prod){
     emoji: emojiForProduct(`${prod.title||""} ${prod.productType||""}`),
     icon: null,
     query: prod.title || name,
+    handle: prod.handle || "",
+    productUrl: prod.onlineStoreUrl || (prod.handle ? `${SHOPIFY_STORE_BASE}/products/${encodeURIComponent(prod.handle)}` : ""),
     variantId: variant.id,
     image: prod.image || null,
     availableForSale: variant.availableForSale!==false
@@ -1290,6 +1304,8 @@ function mergeBestSellerProduct(base, mapped){
     price: mapped.price || base.price,
     unit: mapped.unit || base.unit,
     variantId: mapped.variantId || base.variantId,
+    handle: mapped.handle || base.handle || "",
+    productUrl: mapped.productUrl || base.productUrl || "",
     image: mapped.image || base.image || null,
     icon: null,
     availableForSale: mapped.availableForSale!==false,
@@ -1336,6 +1352,11 @@ function setProduct(idx){
     btn.disabled=disabled;
     btn.textContent=disabled ? "Stok habis" : "+ Keranjang";
   }
+  const linkBtn=document.getElementById("openProductBtn");
+  if(linkBtn){
+    linkBtn.disabled=false;
+    linkBtn.title=getProductShopifyUrl(p).includes("/search") ? "Cari produk di Shopify" : "Buka produk Shopify";
+  }
   document.querySelectorAll(".ps-chip").forEach((c,i)=>c.classList.toggle("active",i===curProd));
   trackEvent("product_selected", {name:p.name, index:curProd});
 }
@@ -1365,9 +1386,9 @@ function refreshProductStrip(){
     el.setAttribute("role","button");
     el.tabIndex=0;
     const photo=productIconHtml(p,"ps-icon");
-    el.innerHTML=`${photo}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-hook">${escapeHtml(p.hook||"Rekomendasi Pak Civo")}</span><span class="ps-p">${escapeHtml(p.price||"")}</span><button type="button" class="ps-add" aria-label="Tambah ${escapeHtml(p.name)}" onclick="addProductByIndex(event, ${i})">+</button>`;
-    el.onclick=()=>{ setProduct(i); revealProducts("strip_select"); };
-    el.onkeydown=(ev)=>{ if(ev.key==="Enter" || ev.key===" "){ ev.preventDefault(); setProduct(i); revealProducts("strip_select"); } };
+    el.innerHTML=`${photo}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-hook">${escapeHtml(p.hook||"Rekomendasi Pak Civo")}</span><span class="ps-p">${escapeHtml(p.price||"")}</span><button type="button" class="ps-link" aria-label="Buka produk Shopify ${escapeHtml(p.name)}" onclick="openProductByIndex(event, ${i})">↗</button><button type="button" class="ps-add" aria-label="Tambah ${escapeHtml(p.name)}" onclick="addProductByIndex(event, ${i})">+</button>`;
+    el.onclick=(ev)=>{ openProductByIndex(ev, i); };
+    el.onkeydown=(ev)=>{ if(ev.key==="Enter" || ev.key===" "){ ev.preventDefault(); openProductByIndex(ev, i); } };
     ps.appendChild(el);
   });
 }
@@ -1382,6 +1403,38 @@ function revealProducts(reason){
 function hideProducts(){
   document.body.classList.remove("show-products");
 }
+function numericVariantId(variantId){
+  const match=String(variantId||"").match(/ProductVariant\/(\d+)/);
+  if(match && match[1]) return match[1];
+  return /^\d+$/.test(String(variantId||"")) ? String(variantId) : "";
+}
+function getProductShopifyUrl(product){
+  const p=product || {};
+  if(p.productUrl && /^https?:\/\//i.test(p.productUrl)) return p.productUrl;
+  if(p.handle) return `${SHOPIFY_STORE_BASE}/products/${encodeURIComponent(p.handle)}`;
+  const numeric=numericVariantId(p.variantId);
+  if(numeric) return `${SHOPIFY_STORE_BASE}/cart/${numeric}:1`;
+  const q=encodeURIComponent(p.query || p.name || "daging babi");
+  return `${SHOPIFY_STORE_BASE}/search?q=${q}`;
+}
+function openProduct(product, source){
+  const url=getProductShopifyUrl(product);
+  trackEvent("shopify_product_opened", {source:source||"catalog", name:product?.name||"", hasVariant:!!product?.variantId, urlType:url.includes("/cart/")?"cart_permalink":url.includes("/products/")?"product":"search"});
+  window.open(url,"_blank","noopener");
+}
+function openProductByIndex(event, idx){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
+  setProduct(idx);
+  revealProducts("strip_open_shopify");
+  openProduct(PRODUCTS[curProd], "product_strip");
+}
+function openCurrentProduct(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
+  openProduct(PRODUCTS[curProd], "product_card");
+}
+window.openProductByIndex = openProductByIndex;
+window.openCurrentProduct = openCurrentProduct;
+
 async function addProductByIndex(event, idx){
   if(event){ event.preventDefault(); event.stopPropagation(); }
   setProduct(idx);
@@ -1755,6 +1808,28 @@ function fmt(t, extraCheckoutUrl){
   }
   return out;
 }
+async function fetchJsonWithTimeout(url, options, timeoutMs){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || 22000);
+  try{
+    const res = await fetch(url, {...(options||{}), signal: controller.signal});
+    const raw = await res.text();
+    let data = {};
+    try{ data = raw ? JSON.parse(raw) : {}; }
+    catch(parseErr){
+      throw new Error("Chat API tidak mengirim JSON valid: "+raw.slice(0,140));
+    }
+    if(!res.ok){
+      throw new Error(data.reply || data.error || ("Chat API HTTP "+res.status));
+    }
+    return data;
+  }catch(error){
+    if(error && error.name === "AbortError") throw new Error("Chat API timeout. Server terlalu lama merespons.");
+    throw error;
+  }finally{
+    clearTimeout(timer);
+  }
+}
 async function send(){
   if(isLoading)return;
   stopVoice();
@@ -1785,8 +1860,8 @@ async function send(){
 
   try{
     const cc=cartItems.length?"[CART: "+cartItems.join(", ")+"]":"[CART KOSONG]";
-    const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        messages:messages.slice(-8),
+    const data=await fetchJsonWithTimeout("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        messages:messages.slice(-6),
         cartContext:cc,
         lead:currentLead,
         catalogHints:PRODUCTS.map(p=>({
@@ -1801,17 +1876,16 @@ async function send(){
           image:p.image||null,
           shopifyName:p.shopifyName||""
         }))
-      })});
-    if(!res.ok)throw new Error("Chat API HTTP "+res.status);
-    const data=await res.json();
+      })},22000);
     const reply=data.reply||"Maaf Kak, coba lagi ya!";
     const checkoutUrl=data.checkoutUrl||data?.cart?.checkoutUrl||"";
     const hasCheckoutButton=!!(checkoutUrl || String(reply||"").match(/https:\/\/civo-meat\.myshopify\.com\/[^\s)]+/i));
     messages.push({role:"assistant",content:reply});
     const html=fmt(reply, checkoutUrl);
     const pcTextEl=document.getElementById("pcText");
-    const canVoiceSync = splitVoiceChunks(extractPlainTextFromHtml(html), {full:true}).length > 0;
-    pcTextEl.innerHTML = canVoiceSync ? '<span class="voice-wait">Pak Civo menyiapkan jawaban suara</span>' : html;
+    // Stability fix: show the complete text immediately.
+    // Voice is now a separate layer, so TTS delay/error cannot cut or hide the answer.
+    pcTextEl.innerHTML = html;
     pcTextEl.parentNode.scrollTop=pcTextEl.parentNode.scrollHeight;
 
     // Keep the live page showroom locked to the 5 best-selling products.
@@ -1850,19 +1924,25 @@ async function send(){
       }
     }
 
-    speakSynced(html, pcTextEl, ()=>{
-      // Keep checkout button visible; auto-hide only regular replies.
-      if(!hasCheckoutButton){
-        setTimeout(()=>{rb.style.display="none";},2500);
-      }
-    });
+    try{
+      speak(html, function(){ setTalking(false); }, {fullVoice:true});
+    }catch(voiceErr){
+      console.warn("Voice skipped", voiceErr);
+      setTalking(false);
+    }
+    // Do not auto-hide. Customers often need time to read prices, links, and checkout instructions.
   }catch(e){
-    trackEvent("chat_error", {message:String(e?.message||e).slice(0,120)});
-    document.getElementById("pcText").innerHTML="Maaf Kak, ada gangguan 🙏";
+    const errMsg=String(e?.message||e||"");
+    trackEvent("chat_error", {message:errMsg.slice(0,120)});
+    const safeMsg=/timeout/i.test(errMsg)
+      ? "Maaf Kak, server sedang lambat. Coba kirim ulang pertanyaannya ya 🙏"
+      : "Maaf Kak, ada gangguan sebentar. Coba kirim ulang pertanyaannya ya 🙏";
+    document.getElementById("pcText").innerHTML=safeMsg;
+    document.getElementById("pcReply").style.display="block";
     setTalking(false);
-    setTimeout(()=>document.getElementById("pcReply").style.display="none",3000);
+  }finally{
+    isLoading=false;
   }
-  isLoading=false;
 }
 
 
@@ -1985,6 +2065,7 @@ function renderCartSummary(lines){
   return (lines||[]).map(line => `${escapeHtml(line.name)} x${escapeHtml(line.quantity)}`).join("<br>");
 }
 async function addToCart(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
   if(!ensureLeadReady())return;
   if(isLoading)return;
   const p=PRODUCTS[curProd];
