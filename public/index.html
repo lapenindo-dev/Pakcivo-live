@@ -62,19 +62,37 @@ button, input { font-family: inherit; }
     linear-gradient(90deg, rgba(0,0,0,0.58), transparent 34%, transparent 66%, rgba(0,0,0,0.56));
 }
 
-/* Pak Civo video — center, portrait */
-.host-video {
+/* Clean Pak Civo visual layer; old video is hidden because it contains outdated background copy. */
+.host-video { display: none !important; }
+.host-art {
   position: absolute;
-  bottom: 0;
   left: 50%;
+  bottom: calc(192px + var(--safe-bottom));
+  width: min(78vw, 360px);
+  height: min(45dvh, 390px);
   transform: translateX(-50%);
-  height: min(82dvh, 82%);
-  width: auto;
-  max-width: 116vw;
-  object-fit: contain;
-  object-position: center bottom;
   z-index: 5;
-  filter: drop-shadow(0 14px 42px rgba(0,0,0,0.85));
+  background-image: url('/assets/pakcivo-host-clean-art.webp');
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: contain;
+  filter: drop-shadow(0 20px 48px rgba(0,0,0,0.78));
+  pointer-events: none;
+}
+.host-art::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 78%;
+  height: 22%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(224,164,103,.28), transparent 68%);
+  filter: blur(12px);
+  z-index: -1;
+}
+@media (max-height: 720px){
+  .host-art{bottom:calc(166px + var(--safe-bottom));height:min(43dvh,350px);}
 }
 
 /* Gradient bottom fade */
@@ -118,12 +136,14 @@ button, input { font-family: inherit; }
   left: 0;
   right: 0;
   z-index: 40;
-  padding: calc(10px + var(--safe-top)) 12px 8px;
+  padding: calc(10px + var(--safe-top)) 14px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
+.top-live-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.brand-check{color:#ef3628;font-size:10px;margin-left:3px;vertical-align:middle;}
 .live-pill {
   display: flex; align-items: center; gap: 5px;
   background: rgba(200,34,0,0.95); border-radius: 6px;
@@ -144,13 +164,13 @@ button, input { font-family: inherit; }
 .brand-pill {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.44);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 999px;
-  padding: 4px 12px 4px 5px;
+  padding: 5px 12px 5px 5px;
 }
 .brand-av {
   width: 26px; height: 26px; border-radius: 50%;
@@ -191,13 +211,13 @@ button, input { font-family: inherit; }
   position: absolute;
   left: 14px;
   right: 72px;
-  bottom: calc(286px + var(--safe-bottom));
+  bottom: calc(284px + var(--safe-bottom));
   z-index: 24;
   display: flex;
   flex-direction: column;
   gap: 6px;
   pointer-events: none;
-  max-height: 132px;
+  max-height: 116px;
   overflow: hidden;
 }
 .cbubble { display:flex;align-items:flex-start;gap:6px;animation:cbIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
@@ -210,16 +230,16 @@ button, input { font-family: inherit; }
 .sidebar {
   position: absolute;
   right: 10px;
-  bottom: calc(210px + var(--safe-bottom));
+  bottom: calc(178px + var(--safe-bottom));
   z-index: 42;
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  gap: 10px;
   align-items: center;
 }
 .sact { display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer; }
 .sicon {
-  width:44px;height:44px;border-radius:50%;
+  width:42px;height:42px;border-radius:50%;
   background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
   display:flex;align-items:center;justify-content:center;font-size:20px;
   border:1px solid rgba(255,255,255,0.1);transition:transform 0.15s;
@@ -250,9 +270,9 @@ button, input { font-family: inherit; }
 .brand-sub{font-size:8.5px;font-weight:800;color:rgba(245,237,208,.64);white-space:nowrap;margin-top:2px;}
 .trust-hooks{
   position:absolute;
-  top:calc(54px + var(--safe-top));
+  top:calc(61px + var(--safe-top));
   left:12px;
-  right:78px;
+  right:14px;
   z-index:39;
   display:flex;
   gap:6px;
@@ -274,8 +294,8 @@ button, input { font-family: inherit; }
 .live-hint{
   position:absolute;
   left:14px;
-  right:74px;
-  bottom:calc(372px + var(--safe-bottom));
+  right:68px;
+  bottom:calc(254px + var(--safe-bottom));
   z-index:22;
   display:flex;
   align-items:center;
@@ -303,7 +323,7 @@ button, input { font-family: inherit; }
   position: absolute;
   left: 14px;
   right: 72px;
-  bottom: calc(210px + var(--safe-bottom));
+  bottom: calc(178px + var(--safe-bottom));
   z-index: 35;
   background: rgba(8,6,4,0.86);
   backdrop-filter: blur(16px);
@@ -311,12 +331,12 @@ button, input { font-family: inherit; }
   border-radius: 7px 16px 16px 16px;
   padding: 10px 13px;
   display: none;
-  max-height: 162px;
+  max-height: 118px;
   overflow-y: auto;
   box-shadow: 0 14px 38px rgba(0,0,0,0.46);
 }
 .pc-tag { font-size:9px;color:var(--copper);font-weight:800;letter-spacing:0.1em;margin-bottom:5px; }
-.pc-txt { font-size:12.5px;color:rgba(245,237,208,0.94);line-height:1.55;word-break:break-word; }
+.pc-txt { font-size:12px;color:rgba(245,237,208,0.94);line-height:1.45;word-break:break-word; }
 .pc-txt strong { color:var(--copper); }
 .pc-txt br { display:block; content:""; margin-top:4px; }
 .checkout-btn {
@@ -334,6 +354,7 @@ button, input { font-family: inherit; }
 
 /* ── PRODUCT CARD ── */
 .product-card {
+  display: none !important;
   position: absolute;
   left: 14px;
   right: 70px;
@@ -371,8 +392,9 @@ button, input { font-family: inherit; }
 
 /* ── PRODUCT STRIP ── */
 .product-strip{
+  display:none;
   position:absolute;
-  bottom:calc(146px + var(--safe-bottom));
+  bottom:calc(142px + var(--safe-bottom));
   left:0;
   right:0;
   z-index:34;
@@ -381,35 +403,40 @@ button, input { font-family: inherit; }
 .ps-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}
 .ps-scroll::-webkit-scrollbar{display:none;}
 .ps-chip {
-  flex:0 0 auto;
-  min-width:132px;
-  max-width:168px;
-  background:rgba(255,247,228,0.12);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(255,247,228,0.14);
-  border-radius:15px;
-  padding:8px 9px;
+  flex:0 0 144px;
+  min-width:144px;
+  max-width:154px;
+  background:linear-gradient(180deg,rgba(255,247,228,0.16),rgba(255,247,228,0.07));
+  backdrop-filter:blur(14px);
+  border:1px solid rgba(255,247,228,0.15);
+  border-radius:16px;
+  padding:7px;
   cursor:pointer;
   transition:all 0.18s;
   display:grid;
-  grid-template-columns:32px minmax(0,1fr);
-  grid-template-areas:"icon name" "icon price";
-  align-items:center;
+  grid-template-columns:1fr 28px;
+  grid-template-areas:"photo photo" "name add" "hook add" "price add";
+  align-items:end;
   gap:3px 7px;
   color:#fff;
-  box-shadow:0 10px 28px rgba(0,0,0,.28);
+  box-shadow:0 14px 34px rgba(0,0,0,.34);
+  text-align:left;
+  border-color:rgba(224,164,103,.24);
 }
-.ps-chip.active{border-color:rgba(224,164,103,0.7);background:rgba(200,133,74,0.20);transform:translateY(-1px);}
-.ps-e{font-size:13px;}
-.ps-n{grid-area:name;font-size:10.5px;font-weight:900;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ps-p{grid-area:price;font-size:11px;color:var(--copper-2);font-weight:950;}
+.ps-chip.active{border-color:rgba(224,164,103,0.78);background:rgba(200,133,74,0.20);transform:translateY(-1px);}
+.ps-icon{grid-area:photo;width:100%;height:60px;border-radius:12px;object-fit:cover;display:block;background:rgba(255,255,255,.06);}
+.ps-icon.product-fallback{display:flex;align-items:center;justify-content:center;font-size:24px;}
+.ps-n{grid-area:name;font-size:11px;font-weight:950;color:rgba(255,255,255,0.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;}
+.ps-hook{grid-area:hook;font-size:9.5px;color:rgba(245,237,208,.70);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;}
+.ps-p{grid-area:price;font-size:15px;color:#ffdb96;font-weight:950;line-height:1;}
+.ps-add{grid-area:add;width:28px;height:28px;border:0;border-radius:9px;background:#CC2200;color:white;font-size:18px;font-weight:950;box-shadow:0 8px 16px rgba(204,34,0,.32);}
+body.show-products .product-strip{display:block;}
+body.show-products .live-hint{display:none;}
+body.show-products .chat-bubbles{bottom:calc(372px + var(--safe-bottom));}
+body.show-products .pc-reply{bottom:calc(254px + var(--safe-bottom));}
+@media (max-height:720px){body.show-products .chat-bubbles{display:none;}body.show-products .pc-reply{bottom:calc(238px + var(--safe-bottom));}}
 
-body.quick-open .product-strip,
-body.quick-open .product-card{
-  opacity:0;
-  pointer-events:none;
-  transform:translateY(10px);
-}
+body.quick-open .product-card{display:none!important;}
 
 /* ── QUICK CHIPS ── */
 /* Intent chips: live-selling shortcuts that replace product tray while open. */
@@ -417,32 +444,31 @@ body.quick-open .product-card{
   position:absolute;
   left:14px;
   right:14px;
-  bottom:calc(148px + var(--safe-bottom));
+  bottom:calc(72px + var(--safe-bottom));
   z-index:45;
-  display:none;
+  display:flex;
   flex-direction:row;
   align-items:center;
   gap:8px;
   width:auto;
-  padding:10px;
+  padding:0 0 3px;
   overflow-x:auto;
   scrollbar-width:none;
-  border-radius:18px;
-  background:linear-gradient(180deg,rgba(18,13,9,0.94),rgba(6,5,4,0.90));
-  backdrop-filter:blur(18px);
-  border:1px solid rgba(200,133,74,0.38);
-  box-shadow:0 16px 38px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+  border-radius:0;
+  background:transparent;
+  backdrop-filter:none;
+  border:0;
+  box-shadow:none;
 }
 .quick-chips::-webkit-scrollbar{display:none;}
 .quick-chips::after{display:none;}
-.quick-panel-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 2px;border-right:1px solid rgba(255,255,255,0.08);margin-right:2px;}
-.quick-panel-title{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--copper);}
-.quick-panel-sub{font-size:9px;font-weight:700;color:rgba(245,237,208,0.54);white-space:nowrap;}
-.qchip{flex:0 0 auto;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.085);color:rgba(245,237,208,0.96);font-size:12px;font-weight:900;padding:9px 11px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-height:38px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.035);}
+.quick-panel-head{display:none;}
+.quick-panel-title,.quick-panel-sub{display:none;}
+.qchip{flex:0 0 auto;background:rgba(0,0,0,0.52);border:1px solid rgba(255,255,255,0.12);color:rgba(245,237,208,0.96);font-size:11.5px;font-weight:900;padding:8px 10px;border-radius:12px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;min-height:40px;box-shadow:0 10px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,0.035);backdrop-filter:blur(10px);}
 .qchip:active{transform:scale(0.98);} 
 .qchip:hover{border-color:rgba(200,133,74,0.46);background:rgba(200,133,74,0.11);} 
 @media (max-width: 420px){
-  .quick-chips{left:10px;right:10px;bottom:calc(146px + var(--safe-bottom));padding:9px;gap:7px;}
+  .quick-chips{left:10px;right:10px;bottom:calc(70px + var(--safe-bottom));padding:0 0 3px;gap:7px;}
   .qchip{font-size:11.5px;padding:8px 10px;min-height:36px;}
 }
 
@@ -452,7 +478,7 @@ body.quick-open .product-card{
 .cart-badge{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--red);font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;}
 .msg-input{flex:1;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:12px 16px;font-size:13px;color:white;outline:none;min-width:0;}
 .msg-input::placeholder{color:rgba(255,255,255,0.25);}
-.send-btn{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--copper),#8B5E30);color:white;font-size:16px;cursor:pointer;flex-shrink:0;box-shadow:0 4px 14px rgba(200,133,74,0.4);}
+.send-btn{width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--copper),#8B5E30);color:white;font-size:16px;cursor:pointer;flex-shrink:0;box-shadow:0 4px 14px rgba(200,133,74,0.4);}
 
 /* Heart float */
 .heart-float{position:fixed;pointer-events:none;z-index:100;font-size:24px;animation:hUp 1.5s ease-out forwards;}
@@ -619,16 +645,16 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   }
   .stage {
     inset: 0 auto 0 50%;
-    width: min(480px, 100vw);
-    max-width: 480px;
+    width: min(430px, 100vw);
+    max-width: 430px;
     transform: translateX(-50%);
     border-left: 1px solid rgba(200,133,74,0.18);
     border-right: 1px solid rgba(200,133,74,0.18);
     box-shadow: 0 0 80px rgba(0,0,0,0.72);
     background: #050505;
   }
-  .chat-bubbles{bottom:calc(296px + var(--safe-bottom));}
-  .live-hint{bottom:calc(384px + var(--safe-bottom));}
+  .chat-bubbles{bottom:calc(284px + var(--safe-bottom));}
+  .live-hint{bottom:calc(254px + var(--safe-bottom));}
 }
 .pc-cta:disabled { opacity: .52; cursor: not-allowed; filter: grayscale(.25); }
 .toast {
@@ -669,6 +695,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     poster="/assets/pakcivo-poster.webp">
     <source src="/assets/pakcivo-host.mp4" type="video/mp4"/>
   </video>
+  <div class="host-art" aria-hidden="true"></div>
 
   <!-- Fades -->
   <div class="fade-bottom"></div>
@@ -685,16 +712,16 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- TOP BAR -->
   <div class="top-bar">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
-      <div class="viewer-pill">👁 <span id="viewerCount">128</span></div>
-    </div>
     <div class="brand-pill">
       <div class="brand-av"><img class="ui-icon-img" src="/civo-logo.png" alt="CIVO MEAT"></div>
       <div class="brand-copy">
-        <div class="brand-title">CIVO MEAT</div>
-        <div class="brand-sub">Premium Pork Live</div>
+        <div class="brand-title">CIVO MEAT <span class="brand-check">●</span></div>
+        <div class="brand-sub">Favorit sejak 2016</div>
       </div>
+    </div>
+    <div class="top-live-meta">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div class="viewer-pill">👁 <span id="viewerCount">128</span></div>
     </div>
   </div>
   <div class="trust-hooks" aria-hidden="true">
@@ -703,7 +730,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   </div>
   <div class="live-hint" aria-hidden="true">
     <div class="live-hint-dot"></div>
-    <div class="live-hint-text">Bilang mau masak apa. Pak Civo bantu pilihkan produk yang paling cocok.</div>
+    <div class="live-hint-text">Tanya masakanmu. Pak Civo bantu pilihkan daging yang cocok.</div>
   </div>
 
   <!-- CHAT BUBBLES -->
@@ -711,21 +738,13 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="sact" onclick="doLike(event)">
-      <div class="sicon like-generic" id="likeIcon" aria-label="Favorit">♥</div>
-      <div class="slbl" id="likeCount">2.3rb</div>
-    </div>
-    <div class="sact" id="chatQuickAction" onclick="toggleChips()">
-      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-chat-host.png" alt="Chat"></div>
-      <div class="slbl">Chat</div>
-    </div>
-    <div class="sact" onclick="shareWA()">
-      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-admin-support.png" alt="Share"></div>
-      <div class="slbl">Share</div>
-    </div>
     <div class="sact" onclick="showCart()">
       <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-cart-checkout.png" alt="Keranjang"></div>
       <div class="slbl" id="cartSlbl">0</div>
+    </div>
+    <div class="sact" onclick="openAdminWA()">
+      <div class="sicon"><img class="ui-icon-img" src="/icons/pakcivo-admin-support.png" alt="Admin"></div>
+      <div class="slbl">Admin</div>
     </div>
   </div>
 
@@ -743,7 +762,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
     <div class="pc-info">
       <div class="pc-name" id="pcName">Samcan Lokal 1kg</div>
       <div class="pc-price-row">
-        <div class="pc-price" id="pcPrice">122rb</div>
+        <div class="pc-price" id="pcPrice">130rb</div>
         <div class="pc-unit" id="pcUnit">/ 1 kg</div>
       </div>
     </div>
@@ -757,7 +776,6 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
   <!-- QUICK CHIPS -->
   <div class="quick-chips" id="quickChips">
-    <div class="quick-panel-head"><div><div class="quick-panel-title">Quick Chat</div><div class="quick-panel-sub">pilih kebutuhan</div></div></div>
     <div class="qchip" onclick="sendQ('Produk paling laris CIVO MEAT apa saja?')"><img class="qicon" src="/icons/pakcivo-best-products.png" alt=""> Best Seller</div>
     <div class="qchip" onclick="sendQ('Saya cari samcan. Ada pilihan apa saja?')"><img class="qicon" src="/icons/pakcivo-premium-favorite.png" alt=""> Cari Samcan</div>
     <div class="qchip" onclick="sendQ('Saya mau BBQ. Bantu pilihkan produk yang cocok.')"><img class="qicon" src="/icons/pakcivo-bbq-package.png" alt=""> Untuk BBQ</div>
@@ -807,7 +825,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.0-mobile-live-commerce";
+const APP_VERSION = "v6.0.1-premium-live-commerce";
 console.log("Tokopakcivo", APP_VERSION);
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
@@ -828,6 +846,7 @@ const PRODUCTS = [
     id: "samcan-lokal-1kg",
     name: "Samcan Lokal 1kg",
     desc: "Samcan lokal frozen vacuum pack. Cocok untuk masakan harian, babi kecap, panggang, atau rebus.",
+    hook: "Cocok goreng crispy",
     price: "130rb",
     unit: "/ 1 kg",
     emoji: "🥓",
@@ -841,6 +860,7 @@ const PRODUCTS = [
     id: "babi-giling-500g",
     name: "Babi Giling 500g",
     desc: "Daging babi giling praktis untuk bakso, pangsit, bakmoy, tumisan, dan campuran masakan rumah.",
+    hook: "Praktis untuk isian",
     price: "40rb",
     unit: "/ 500 g",
     emoji: "🥩",
@@ -854,6 +874,7 @@ const PRODUCTS = [
     id: "paikut-sop-500g",
     name: "Paikut Sop 500g",
     desc: "Paikut potongan sop untuk bakut, sup, rebusan, dan masakan kuah dengan rasa kaldu kuat.",
+    hook: "Kaldu lebih kuat",
     price: "50rb",
     unit: "/ 500 g",
     emoji: "🍖",
@@ -867,6 +888,7 @@ const PRODUCTS = [
     id: "kapsim-1kg",
     name: "Kapsim 1kg",
     desc: "Kapsim/shoulder serbaguna untuk tumis, cincang kasar, babi kecap, sup, dan masakan harian.",
+    hook: "Serbaguna harian",
     price: "80rb",
     unit: "/ 1 kg",
     emoji: "🔪",
@@ -880,6 +902,7 @@ const PRODUCTS = [
     id: "samcan-import-1kg",
     name: "Samcan Import 1kg",
     desc: "Samcan import dengan potongan lebih konsisten. Cocok untuk grill, hotpot, Korean BBQ, dan masakan premium.",
+    hook: "Lebih juicy panggang",
     price: "150rb",
     unit: "/ 1 kg",
     emoji: "🔥",
@@ -1011,7 +1034,7 @@ function showSoftOpeningGreeting(){
   const rb=document.getElementById("pcReply");
   const pc=document.getElementById("pcText");
   if(!rb || !pc) return;
-  const greeting="Halo Kak, saya Pak Civo. Tulis mau masak apa, nanti saya bantu pilihkan daging yang paling cocok.";
+  const greeting="Halo Kak, mau masak apa? Saya bantu pilihkan daging yang cocok.";
   pc.innerHTML=escapeHtml(greeting);
   rb.style.display="block";
 }
@@ -1337,13 +1360,33 @@ function refreshProductStrip(){
   if(!ps) return;
   ps.innerHTML="";
   PRODUCTS.forEach((p,i)=>{
-    const el=document.createElement("button");
-    el.type="button";
+    const el=document.createElement("div");
     el.className="ps-chip"+(i===curProd?" active":"");
-    el.innerHTML=`${productIconHtml(p,"ps-icon")}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-p">${escapeHtml(p.price||"")}</span>`;
-    el.onclick=()=>setProduct(i);
+    el.setAttribute("role","button");
+    el.tabIndex=0;
+    const photo=productIconHtml(p,"ps-icon");
+    el.innerHTML=`${photo}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-hook">${escapeHtml(p.hook||"Rekomendasi Pak Civo")}</span><span class="ps-p">${escapeHtml(p.price||"")}</span><button type="button" class="ps-add" aria-label="Tambah ${escapeHtml(p.name)}" onclick="addProductByIndex(event, ${i})">+</button>`;
+    el.onclick=()=>{ setProduct(i); revealProducts("strip_select"); };
+    el.onkeydown=(ev)=>{ if(ev.key==="Enter" || ev.key===" "){ ev.preventDefault(); setProduct(i); revealProducts("strip_select"); } };
     ps.appendChild(el);
   });
+}
+
+function isProductIntent(text){
+  return /produk|samcan|babi|giling|paikut|bakut|ribs|kapsim|shoulder|bacon|bbq|barbeque|panggang|sop|kuah|hotpot|shabu|order|beli|best seller|paling laris|promo/i.test(String(text||""));
+}
+function revealProducts(reason){
+  document.body.classList.add("show-products");
+  trackEvent("products_revealed", {reason: reason||"unknown"});
+}
+function hideProducts(){
+  document.body.classList.remove("show-products");
+}
+async function addProductByIndex(event, idx){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
+  setProduct(idx);
+  revealProducts("strip_add");
+  return addToCart(event);
 }
 
 async function hydrateProductsFromShopify(){
@@ -1723,7 +1766,8 @@ async function send(){
     setTimeout(()=>document.getElementById("leadName")?.focus(),120);
     return;
   }
-  inp.value="";toggleChips(false);
+  inp.value="";
+  if(isProductIntent(text)) revealProducts("chat_intent");
 
   const ub=document.createElement("div");ub.className="cbubble";
   ub.innerHTML=`<div class="cbav" style="background:var(--copper)">K</div><div class="cbtxt"><span class="cbname" style="color:var(--copper)">Kamu</span> ${escapeHtml(text)}</div>`;
@@ -1777,7 +1821,7 @@ async function send(){
       const parts=String(p.name||"").toLowerCase().split(/\s+/).filter(Boolean);
       return parts.some(part=>part.length>=5 && t.includes(part));
     });
-    if(idx>=0) setProduct(idx);
+    if(idx>=0){ setProduct(idx); revealProducts("ai_reply_match"); }
 
     var cm=null;
     var cartIdx=reply.indexOf("<<CART:ADD:");
@@ -1824,24 +1868,22 @@ async function send(){
 
 function sendProductQuick(productId){
   const idx=PRODUCTS.findIndex(p=>p.id===productId);
-  if(idx>=0) setProduct(idx);
+  if(idx>=0){ setProduct(idx); revealProducts("ai_reply_match"); }
   const p=idx>=0?PRODUCTS[idx]:null;
   const text=p ? `Cek produk ${p.name}. Produk ini termasuk 5 best seller CIVO MEAT.` : String(productId||"");
   sendQ(text);
 }
 
 function sendQ(t){
-  toggleChips(false);
+  if(isProductIntent(t)) revealProducts("quick_intent");
   document.getElementById("msgInput").value=t;
   send();
 }
 function toggleChips(force){
-  chipsVisible=force!==undefined?force:!chipsVisible;
+  chipsVisible=true;
   const panel=document.getElementById("quickChips");
-  panel.style.display=chipsVisible?"flex":"none";
-  document.body.classList.toggle("quick-open", chipsVisible);
-  const chatAction=document.getElementById("chatQuickAction");
-  if(chatAction) chatAction.classList.toggle("active", chipsVisible);
+  if(panel) panel.style.display="flex";
+  document.body.classList.remove("quick-open");
 }
 function cloneCartLines(lines){
   const merged=new Map();
@@ -2019,6 +2061,11 @@ async function showCart(){
     }
   }
   showToast("Keranjang masih kosong. Pilih produk lalu klik + Keranjang.", "info");
+}
+function openAdminWA(){
+  const p=PRODUCTS[curProd] || PRODUCTS[0];
+  const t=encodeURIComponent(`Halo admin CIVO MEAT, saya mau tanya/order dari Pak Civo Live. Produk yang sedang saya lihat: ${p.name} — ${p.price} ${p.unit}`);
+  window.open("https://wa.me/6281717179291?text="+t,"_blank","noopener");
 }
 function shareWA(){
   const p=PRODUCTS[curProd];
