@@ -836,7 +836,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.5-shopify-catalog-linked";
+const APP_VERSION = "v6.0.6-shopify-images-locked";
 console.log("Tokopakcivo", APP_VERSION);
 const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
@@ -1228,9 +1228,32 @@ function uiIconHtml(src, alt, cls){
   if(!src) return "";
   return `<img class="${escapeHtml(cls||"ui-icon-img")}" src="${escapeHtml(src)}" alt="${escapeHtml(alt||"")}" loading="lazy" decoding="async">`;
 }
+function imageUrlFromAny(value){
+  if(!value) return "";
+  if(typeof value === "string"){
+    if(/^https?:\/\//i.test(value)) return value;
+    if(/^\/\//.test(value)) return "https:" + value;
+    return "";
+  }
+  if(typeof value === "object"){
+    return imageUrlFromAny(value.url || value.src || value.image || value.originalSrc);
+  }
+  return "";
+}
 function productImageSrc(p){
-  const img = p && (p.image || p.featuredImage || p.shopifyImage);
-  return typeof img === "string" && /^https?:\/\//i.test(img) ? img : "";
+  if(!p) return "";
+  const direct = imageUrlFromAny(p.image || p.shopifyImage || p.featuredImage || p.imageUrl);
+  if(direct) return direct;
+  if(Array.isArray(p.images)){
+    for(const img of p.images){
+      const url=imageUrlFromAny(img);
+      if(url) return url;
+    }
+  }
+  return "";
+}
+function shopifyVariantImage(prod, variant){
+  return imageUrlFromAny(variant?.image || variant?.featuredImage || variant?.imageUrl) || productImageSrc(prod);
 }
 function productIconHtml(p, cls){
   const image=productImageSrc(p);
@@ -1246,6 +1269,7 @@ function productFromShopifyProduct(prod){
   const variant=variants.find(v=>v && v.availableForSale!==false && v.id) || variants.find(v=>v && v.id) || null;
   if(!prod || !variant || !variant.id) return null;
   const name=cleanProductName(prod.title);
+  const image=shopifyVariantImage(prod, variant);
   return {
     id: prod.handle || prod.id || variant.id,
     name,
@@ -1258,7 +1282,9 @@ function productFromShopifyProduct(prod){
     handle: prod.handle || "",
     productUrl: prod.onlineStoreUrl || (prod.handle ? `${SHOPIFY_STORE_BASE}/products/${encodeURIComponent(prod.handle)}` : ""),
     variantId: variant.id,
-    image: prod.image || null,
+    image,
+    shopifyImage: image,
+    images: Array.isArray(prod.images) ? prod.images : [],
     availableForSale: variant.availableForSale!==false
   };
 }
@@ -1287,6 +1313,7 @@ function bestSellerCandidateScore(prod, mapped, rank){
   const title=String(prod?.title||mapped?.name||"").toLowerCase();
   let score=0;
   if(mapped?.availableForSale!==false) score+=20;
+  if(productImageSrc(mapped)) score+=8;
   if(/1\s*kg|1000\s*g|1000\s*gr/.test(title)) score+=6;
   if(/500\s*g|500\s*gr/.test(title)) score+=6;
   if(rank===0 && /lokal|local/.test(title)) score+=10;
@@ -1297,6 +1324,57 @@ function bestSellerCandidateScore(prod, mapped, rank){
   if(/slice|samgyeopsal|skin\s*off|without\s*skin|tipis|tebal/.test(title)) score-=15;
   return score;
 }
+function scoreShopifyProductForBase(prod, mapped, base, rank){
+  const text=[prod?.title, prod?.handle, prod?.description, prod?.productType, Array.isArray(prod?.tags)?prod.tags.join(" "):"", (prod?.variants||[]).map(v=>v?.title||"").join(" ")].join(" ").toLowerCase().replace(/[_-]+/g," ");
+  let score=bestSellerCandidateScore(prod, mapped, rank);
+  const has=(re)=>re.test(text);
+  const title=String(prod?.title||"").toLowerCase();
+  const aliases=Array.isArray(base?.shopifyQueries)?base.shopifyQueries:[];
+  for(const q of aliases){
+    const nq=String(q||"").toLowerCase().trim();
+    if(nq && title.includes(nq)) score+=45;
+  }
+  if(base?.id==="samcan-lokal-1kg"){
+    if(has(/samcan|pork\s*belly|wuhua/)) score+=38;
+    if(has(/lokal|local/)) score+=38;
+    if(has(/import|impor|slice|samgyeopsal|skin\s*off|without\s*skin|tipis|tebal/)) score-=35;
+  }else if(base?.id==="babi-giling-500g"){
+    if(has(/babi\s*giling|giling\s*babi|ground|minced|mince/)) score+=65;
+  }else if(base?.id==="paikut-sop-500g"){
+    if(has(/paikut|bakut|bak\s*kut|ribs?|iga/)) score+=58;
+    if(has(/sop|soup|chopped|potong/)) score+=12;
+    if(has(/bbq|barbeque|grill|import/)) score-=18;
+  }else if(base?.id==="kapsim-1kg"){
+    if(has(/kapsim|kasim|shoulder|collar/)) score+=65;
+  }else if(base?.id==="samcan-import-1kg"){
+    if(has(/samcan|pork\s*belly|wuhua/)) score+=38;
+    if(has(/import|impor/)) score+=42;
+    if(has(/lokal|local|slice|samgyeopsal|skin\s*off|without\s*skin|tipis|tebal/)) score-=35;
+  }
+  return score;
+}
+function mergeClientProducts(list){
+  const map=new Map();
+  (Array.isArray(list)?list:[]).forEach(prod=>{
+    if(!prod) return;
+    const key=prod.id || prod.handle || cleanProductName(prod.title).toLowerCase();
+    if(!key) return;
+    const existing=map.get(key);
+    if(!existing){
+      map.set(key, prod);
+    }else{
+      map.set(key, {
+        ...existing,
+        ...prod,
+        image: productImageSrc(prod) || productImageSrc(existing) || null,
+        featuredImage: prod.featuredImage || existing.featuredImage || null,
+        images: Array.isArray(prod.images) && prod.images.length ? prod.images : existing.images,
+        variants: Array.isArray(prod.variants) && prod.variants.length ? prod.variants : existing.variants
+      });
+    }
+  });
+  return Array.from(map.values());
+}
 function mergeBestSellerProduct(base, mapped){
   return {
     ...base,
@@ -1306,7 +1384,9 @@ function mergeBestSellerProduct(base, mapped){
     variantId: mapped.variantId || base.variantId,
     handle: mapped.handle || base.handle || "",
     productUrl: mapped.productUrl || base.productUrl || "",
-    image: mapped.image || base.image || null,
+    image: productImageSrc(mapped) || productImageSrc(base) || null,
+    shopifyImage: productImageSrc(mapped) || productImageSrc(base) || null,
+    images: Array.isArray(mapped.images) && mapped.images.length ? mapped.images : (Array.isArray(base.images) ? base.images : []),
     icon: null,
     availableForSale: mapped.availableForSale!==false,
     query: mapped.query || base.query,
@@ -1442,26 +1522,57 @@ async function addProductByIndex(event, idx){
   return addToCart(event);
 }
 
+async function fetchShopifyProductsForQuery(q){
+  const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q||""),{cache:"no-store"});
+  if(!res.ok) return [];
+  const data=await res.json();
+  return data.ok && Array.isArray(data.products) ? data.products : [];
+}
 async function hydrateProductsFromShopify(){
   try{
+    const slots=new Array(PRODUCTS.length).fill(null);
     const all=[];
-    const queries=[...new Set(PRODUCTS.flatMap(p=>Array.isArray(p.shopifyQueries)&&p.shopifyQueries.length?p.shopifyQueries:[p.query]).filter(Boolean))];
-    for(const q of queries){
+
+    // Hydrate each showroom slot from Shopify independently.
+    // This prevents a samcan/paikut/kapsim card from borrowing the wrong product photo.
+    for(let i=0;i<PRODUCTS.length;i++){
+      const base=PRODUCTS[i];
+      const primaryQuery=(Array.isArray(base.shopifyQueries) && base.shopifyQueries[0]) || base.query || base.name;
       try{
-        const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q),{cache:"no-store"});
-        if(!res.ok) continue;
-        const data=await res.json();
-        if(data.ok && Array.isArray(data.products)) all.push(...data.products);
+        const candidates=mergeClientProducts(await fetchShopifyProductsForQuery(primaryQuery));
+        all.push(...candidates);
+        let best=null;
+        let bestScore=-999;
+        for(const raw of candidates){
+          const mapped=productFromShopifyProduct(raw);
+          if(!mapped) continue;
+          const score=scoreShopifyProductForBase(raw, mapped, base, i);
+          if(score>bestScore){ bestScore=score; best={mapped, score}; }
+        }
+        if(best && bestScore>=35) slots[i]=best;
       }catch(e){
-        console.warn("Best seller product query skipped", q, e);
+        console.warn("Shopify slot hydration skipped", base?.name, e);
       }
     }
-    if(!all.length){
-      const res=await fetch("/api/shopify-products",{cache:"no-store"});
-      const data=await res.json();
-      if(data.ok && Array.isArray(data.products)) all.push(...data.products);
+
+    const foundCount=slots.filter(Boolean).length;
+    if(foundCount){
+      const next=PRODUCTS.map((base,i)=>slots[i] ? mergeBestSellerProduct(base, slots[i].mapped) : base);
+      PRODUCTS.splice(0, PRODUCTS.length, ...next);
+      curProd=0;
+      refreshProductStrip();
+      setProduct(0);
+      trackEvent("products_loaded", {count:foundCount, shown:PRODUCTS.length, source:"shopify_slot_images_locked"});
+      return true;
     }
-    applyShopifyProducts(all,{preferFirst:true,source:"best_seller_catalog"});
+
+    // Last fallback: use older broad hydration only if slot hydration finds nothing.
+    const queries=[...new Set(PRODUCTS.flatMap(p=>Array.isArray(p.shopifyQueries)&&p.shopifyQueries.length?p.shopifyQueries:[p.query]).filter(Boolean))];
+    for(const q of queries){
+      try{ all.push(...await fetchShopifyProductsForQuery(q)); }
+      catch(e){ console.warn("Best seller product query skipped", q, e); }
+    }
+    applyShopifyProducts(mergeClientProducts(all),{preferFirst:true,source:"best_seller_catalog_fallback"});
   }catch(e){
     console.warn("Shopify product hydration skipped", e);
   }
@@ -2017,7 +2128,8 @@ function buildNextCartLines(product, qty){
       productId: product.id,
       name: product.name,
       variantId: product.variantId,
-      quantity: addQty
+      quantity: addQty,
+      image: productImageSrc(product) || ""
     });
   }
   return next;
