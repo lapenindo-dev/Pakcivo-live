@@ -47,7 +47,7 @@ function normalizeForSpeech(text) {
   t = t.replace(/\bCIVO\b/gi, "Sivo");
   t = t.replace(/\bWA\b/gi, "WhatsApp");
   t = t.replace(/\bBBQ\b/gi, "barbekyu");
-  t = t.replace(/\bSamcan\b/gi, "Sam-can");
+  t = t.replace(/\bSamcan\b/gi, "Sam-chan");
   t = t.replace(/\bSamgyeopsal\b/gi, "Sam-gyeop-sal");
   t = t.replace(/\bSkin Off\b/gi, "skin off");
   t = t.replace(/\bSkin On\b/gi, "skin on");
