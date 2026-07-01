@@ -624,19 +624,6 @@ function setCachedProducts(key, value) {
   _productCache.set(key, { value, time: Date.now() });
 }
 
-function buildCartPermalinkFromCommands(commands) {
-  const shop = normalizeShopDomain(process.env.SHOPIFY_CART_DOMAIN || SHOPIFY_STORE_DOMAIN || "civo-meat.myshopify.com");
-  const items = commands
-    .map((cmd) => {
-      const id = getNumericVariantId(cmd.variantId);
-      const qty = Math.max(1, Math.min(Number(cmd.quantity || 1), 99));
-      return id ? `${id}:${qty}` : "";
-    })
-    .filter(Boolean)
-    .join(",");
-  return shop && items ? `https://${shop}/cart/${items}` : "";
-}
-
 async function shopifyGraphQL(query, variables = {}, timeoutMs = 6500) {
   if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
     throw new Error("Shopify environment variables belum lengkap.");
@@ -1030,9 +1017,9 @@ const FAQ_TEMPLATES = [
 
 // Match FAQ: semua keywords harus ada di pesan user (normalized)
 function matchFAQ(userMessage) {
-  const normalized = normalizeText(userMessage);
+  const normalized = " " + normalizeText(userMessage) + " ";
   for (const faq of FAQ_TEMPLATES) {
-    if (faq.keywords.every(kw => normalized.includes(kw))) {
+    if (faq.keywords.every(kw => normalized.includes(" " + kw + " "))) {
       return faq.reply;
     }
   }
@@ -1172,13 +1159,19 @@ async function callGemini(systemPrompt, contents) {
 async function processShopifyCartCommands(reply) {
   const commandRegex = /<<SHOPIFY_CART\|([^|>]+)\|(\d+)>>/g;
   const matches = [...String(reply || "").matchAll(commandRegex)];
-  let cleanReply = String(reply || "").replace(commandRegex, "").replace(/\n{3,}/g, "\n\n").trim();
+  const cleanReply = String(reply || "").replace(commandRegex, "").replace(/\n{3,}/g, "\n\n").trim();
 
   if (matches.length === 0) {
-    return { reply: cleanReply, checkoutUrl: null, cart: null };
+    return { reply: cleanReply, cartCommands: [] };
   }
 
-  // Faster than Storefront cartCreate: build Shopify cart permalink directly.
+  // NOTE: we deliberately do NOT build a checkout permalink or a Shopify Cart API
+  // cart here anymore. Doing so created a SECOND, disconnected cart/checkout path
+  // that never touched the cartLines state the rest of the app (badge, "+Keranjang"
+  // button, cart summary) relies on — the exact "tidak sinkron" symptom. Instead we
+  // just report which variant(s) the AI wants to add; the frontend merges them into
+  // the same cartLines it already uses for button-driven adds, via the same
+  // confirmation-card flow, so there is only ever ONE source of truth for the cart.
   const merged = new Map();
   for (const match of matches) {
     const variantId = String(match[1] || "").trim();
@@ -1187,21 +1180,12 @@ async function processShopifyCartCommands(reply) {
     merged.set(variantId, (merged.get(variantId) || 0) + quantity);
   }
 
-  const commands = Array.from(merged.entries()).map(([variantId, quantity]) => ({
+  const cartCommands = Array.from(merged.entries()).map(([variantId, quantity]) => ({
     variantId,
     quantity: Math.min(quantity, 99),
   }));
 
-  const checkoutUrl = buildCartPermalinkFromCommands(commands);
-  if (checkoutUrl) {
-    cleanReply = `${cleanReply}\n\n🛒 Checkout Shopify:\n${checkoutUrl}`;
-  }
-
-  return {
-    reply: cleanReply,
-    checkoutUrl: checkoutUrl || null,
-    cart: checkoutUrl ? { checkoutUrl, lines: commands } : null,
-  };
+  return { reply: cleanReply, cartCommands };
 }
 
 module.exports = async function handler(req, res) {
@@ -1304,8 +1288,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       role: "assistant",
       reply: processed.reply,
-      checkoutUrl: processed.checkoutUrl,
-      cart: processed.cart,
+      cartCommands: processed.cartCommands,
       productsUsed: products.map((product) => ({
         id: product.id,
         title: product.title,
