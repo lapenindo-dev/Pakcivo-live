@@ -1573,8 +1573,18 @@ async function addProductByIndex(event, idx){
 
 async function fetchShopifyProductsForQuery(q){
   const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q||""),{cache:"no-store"});
-  if(!res.ok) return [];
+  if(!res.ok){
+    // Previously this failed silently, so a bad Shopify Storefront token/scope,
+    // GraphQL error, or 500 would just render as emoji fallback with zero trace
+    // in the console. Now it's logged so mismatched product photos are debuggable.
+    const bodyText=await res.text().catch(()=>"");
+    console.warn("[PakCivo] /api/shopify-products failed", {query:q, status:res.status, body:bodyText.slice(0,300)});
+    return [];
+  }
   const data=await res.json();
+  if(!data.ok){
+    console.warn("[PakCivo] /api/shopify-products returned ok:false", {query:q, data});
+  }
   return data.ok && Array.isArray(data.products) ? data.products : [];
 }
 async function hydrateProductsFromShopify(){
