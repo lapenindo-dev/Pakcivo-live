@@ -7,7 +7,7 @@
 <meta name="description" content="Belanja daging babi premium CIVO MEAT dengan bantuan Pak Civo AI. Tanya produk, pilih samcan, ribs, bacon, kapsim, dan checkout langsung via Shopify.">
 <meta property="og:title" content="Pak Civo LIVE — CIVO MEAT">
 <meta property="og:description" content="AI butcher CIVO MEAT siap bantu pilih produk dan buatkan checkout Shopify.">
-<meta property="og:image" content="/assets/pakcivo-poster.webp">
+<meta property="og:image" content="/assets/pakcivo-live-chopping-poster.webp">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#070403">
 <style>
@@ -62,40 +62,32 @@ button, input { font-family: inherit; }
     linear-gradient(90deg, rgba(0,0,0,0.54), transparent 35%, transparent 66%, rgba(0,0,0,0.54));
 }
 
-/* Clean Pak Civo visual layer; old video is hidden because it contains outdated background copy. */
+/* Pak Civo live video layer. Poster stays underneath as the static fallback. */
 .host-video { display: none !important; }
-.host-art {
+.host-art { display: none !important; }
+.pakcivo-live-fallback,
+.pakcivo-live-video {
   position: absolute;
-  left: 50%;
-  top: clamp(124px, 17dvh, 152px);
-  bottom: auto;
-  width: min(132vw, 560px);
-  height: min(62dvh, 560px);
-  transform: translateX(-50%);
-  z-index: 7;
-  background-image: url('/assets/pakcivo-host-clean-art.webp');
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: contain;
-  filter: drop-shadow(0 24px 56px rgba(0,0,0,0.78));
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 82%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 82%, transparent 100%);
 }
-.host-art::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -8px;
-  width: 82%;
-  height: 20%;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(224,164,103,.28), transparent 68%);
-  filter: blur(12px);
-  z-index: -1;
+.pakcivo-live-fallback {
+  z-index: 5;
+  background: #050505;
+  filter: brightness(.90) saturate(1.05) contrast(1.02);
 }
-@media (max-height: 720px){
-  .host-art{top:clamp(112px,15dvh,132px);width:min(136vw,580px);height:min(66dvh,600px);}
+.pakcivo-live-video {
+  z-index: 6;
+  background: #050505;
+  filter: brightness(.92) saturate(1.05) contrast(1.02);
+}
+.stage.video-failed .pakcivo-live-video { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pakcivo-live-video { display: none; }
 }
 
 /* Gradient bottom fade */
@@ -106,7 +98,7 @@ button, input { font-family: inherit; }
   right: 0;
   height: 54%;
   background: linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.58) 44%, rgba(0,0,0,0.06) 100%);
-  z-index: 6;
+  z-index: 8;
 }
 .fade-top {
   position: absolute;
@@ -115,7 +107,7 @@ button, input { font-family: inherit; }
   right: 0;
   height: 22%;
   background: linear-gradient(to bottom, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.18) 62%, transparent 100%);
-  z-index: 8;
+  z-index: 9;
 }
 
 /* Talking aura on Pak Civo */
@@ -734,9 +726,27 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
   <!-- BG shop -->
   <div class="bg-img" style="background-image:url('/assets/pakcivo-premium-live-bg.webp'), url('/assets/bg-shop.webp');"></div>
 
-  <!-- Pak Civo visual (static art). Old 1.1MB looping MP4 removed: it was hidden via CSS
-       yet still downloaded on every load, hurting mobile load time with no visible benefit. -->
-  <div class="host-art" aria-hidden="true"></div>
+  <!-- Pak Civo live video. Poster image remains visible if autoplay/load is blocked. -->
+  <img
+    class="pakcivo-live-fallback"
+    src="/assets/pakcivo-live-chopping-poster.webp"
+    alt="Pak Civo live butcher"
+    loading="eager"
+    decoding="async"
+  />
+  <video
+    class="pakcivo-live-video"
+    id="pakcivoLiveVideo"
+    autoplay
+    muted
+    loop
+    playsinline
+    preload="metadata"
+    poster="/assets/pakcivo-live-chopping-poster.webp"
+    aria-hidden="true"
+  >
+    <source src="/assets/pakcivo-live-chopping-v1.mp4" type="video/mp4">
+  </video>
 
   <!-- Fades -->
   <div class="fade-bottom"></div>
@@ -869,8 +879,22 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.9-shopify-public-catalog-images";
+const APP_VERSION = "v6.1.0-live-video-background";
 console.log("Tokopakcivo", APP_VERSION);
+(function initPakCivoLiveVideo(){
+  const stage = document.getElementById("stage");
+  const video = document.getElementById("pakcivoLiveVideo");
+  if (!stage || !video) return;
+  const fail = () => stage.classList.add("video-failed");
+  video.addEventListener("error", fail, { once:true });
+  video.addEventListener("stalled", () => {
+    if (video.readyState < 2) fail();
+  }, { once:true });
+  const playPromise = video.play && video.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(fail);
+  }
+})();
 const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
   chatHost: "/icons/pakcivo-chat-host.png",
