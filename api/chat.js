@@ -58,9 +58,17 @@ function cleanupRateMap() {
 
 const MAX_HISTORY = 6;
 
+// gemini-2.0-flash was shut down by Google on 2026-06-01; gemini-1.5-flash was
+// retired even earlier. Both returned errors on every call, which is why Pak Civo
+// always fell back to "sedang ramai sebentar". Updated to currently-active models
+// (per Google's Gemini API deprecation page, checked 2026-07-01):
+//   - gemini-3.1-flash-lite: stable, released 2026-05-07, no shutdown before 2027-05-07
+//   - gemini-2.5-flash: still active until 2026-10-16 (kept as fallback for redundancy
+//     across two different model generations, in case one is pulled early)
+// When Google announces the next retirement, update this array — do not let it go stale.
 const MODELS = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
 ];
 
 function normalizeText(value) {
