@@ -1,5 +1,5 @@
 // api/shopify-products.js
-// v6.0.6 — Shopify catalog search with variant/product images locked for Pak Civo Live
+// v6.0.7 — Shopify showroom search with locked product-card images for Pak Civo Live
 
 function normalizeText(value) {
   return String(value || "")
@@ -51,6 +51,8 @@ function mergeProducts(...lists) {
           ...existing,
           ...product,
           image: product.image || existing.image || null,
+          featuredImage: product.featuredImage || existing.featuredImage || null,
+          images: Array.isArray(product.images) && product.images.length ? product.images : existing.images,
           variants: Array.isArray(product.variants) && product.variants.length ? product.variants : existing.variants
         });
       }
@@ -112,6 +114,132 @@ function rankProducts(products, rawQuery, limit = 20) {
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((item) => item.product);
+}
+
+const SHOWROOM_SLOTS = [
+  {
+    slotKey: "samcan-lokal-1kg",
+    label: "Samcan Lokal 1kg",
+    queries: ["Samcan Lokal 1kg", "Samcan Babi Pork Belly Lokal 1kg", "Pork Belly Lokal", "samcan lokal"],
+    must: [/samcan|pork\s*belly|wuhua/],
+    prefer: [/lokal|local/],
+    exclude: [/import|impor|slice|samgyeopsal|skin\s*off|without\s*skin|tanpa\s*kulit|tipis|tebal/]
+  },
+  {
+    slotKey: "babi-giling-500g",
+    label: "Babi Giling 500g",
+    queries: ["Babi Giling 500g", "Daging Babi Giling 500g", "Babi Giling", "giling babi", "ground pork", "minced pork"],
+    must: [/babi\s*giling|giling\s*babi|ground|minced|mince/],
+    prefer: [/500\s*g|500\s*gr|500g/],
+    exclude: []
+  },
+  {
+    slotKey: "paikut-sop-500g",
+    label: "Paikut Sop 500g",
+    queries: ["Paikut Sop 500g", "Paikut Sop", "Paikut", "Bakut", "Bak Kut", "Pork Ribs Sop", "ribs chopped", "iga babi"],
+    must: [/paikut|bakut|bak\s*kut|ribs?|iga/],
+    prefer: [/sop|soup|chopped|potong|500\s*g|500g/],
+    exclude: [/bbq|barbeque|grill|import|impor/]
+  },
+  {
+    slotKey: "kapsim-1kg",
+    label: "Kapsim 1kg",
+    queries: ["Kapsim 1kg", "Kapsim Babi 1kg", "Shoulder Babi 1kg", "Pork Shoulder", "kasim", "collar"],
+    must: [/kapsim|kasim|shoulder|collar/],
+    prefer: [/1\s*kg|1000\s*g|1kg/],
+    exclude: []
+  },
+  {
+    slotKey: "samcan-import-1kg",
+    label: "Samcan Import 1kg",
+    queries: ["Samcan Import 1kg", "Pork Belly Samcan Import 1kg", "Pork Belly Import", "Wuhua Rou Import"],
+    must: [/samcan|pork\s*belly|wuhua/],
+    prefer: [/import|impor/],
+    exclude: [/lokal|local|slice|samgyeopsal|skin\s*off|without\s*skin|tanpa\s*kulit|tipis|tebal/]
+  }
+];
+
+function productHasImage(product) {
+  if (product?.image) return true;
+  if (product?.featuredImage?.url) return true;
+  if (Array.isArray(product?.images) && product.images.some((img) => img?.url || img)) return true;
+  if (Array.isArray(product?.variants) && product.variants.some((variant) => variant?.image || variant?.image?.url)) return true;
+  return false;
+}
+
+function hasAvailableVariant(product) {
+  return Array.isArray(product?.variants) && product.variants.some((variant) => variant?.id && variant.availableForSale !== false);
+}
+
+function scoreShowroomProduct(product, slot) {
+  const text = productSearchText(product);
+  const title = normalizeText(product?.title || "");
+  if (!text) return -999;
+
+  let score = 0;
+  if (hasAvailableVariant(product)) score += 15;
+  if (productHasImage(product)) score += 35;
+  if (/1\s*kg|1000\s*g|1kg/.test(text) && /1kg/.test(normalizeText(slot.label))) score += 8;
+  if (/500\s*g|500\s*gr|500g/.test(text) && /500g/.test(normalizeText(slot.label))) score += 8;
+
+  for (const re of slot.must || []) score += re.test(text) ? 80 : -120;
+  for (const re of slot.prefer || []) if (re.test(text)) score += 35;
+  for (const re of slot.exclude || []) if (re.test(text)) score -= 90;
+
+  for (const query of slot.queries || []) {
+    const q = normalizeText(query);
+    if (!q) continue;
+    if (title === q) score += 80;
+    else if (title.includes(q) || text.includes(q)) score += 45;
+  }
+  return score;
+}
+
+function pickShowroomProducts(products) {
+  const pool = Array.isArray(products) ? products : [];
+  const used = new Set();
+  return SHOWROOM_SLOTS.map((slot) => {
+    let best = null;
+    let bestScore = -999;
+    for (const product of pool) {
+      const key = product?.id || product?.handle || product?.title;
+      if (!key || used.has(key)) continue;
+      const score = scoreShowroomProduct(product, slot);
+      if (score > bestScore) {
+        best = product;
+        bestScore = score;
+      }
+    }
+    if (!best || bestScore < 25) return null;
+    used.add(best.id || best.handle || best.title);
+    return { ...best, slotKey: slot.slotKey, slotLabel: slot.label, showroomScore: bestScore };
+  }).filter(Boolean);
+}
+
+async function fetchShowroomProducts({ shop, token, version }) {
+  let products = [];
+
+  // First fetch the whole available catalog so the product card photos come from
+  // the same Shopify objects customers see in the store.
+  try {
+    products = mergeProducts(products, await fetchShopifyProducts({ shop, token, version, shopifyQuery: "", first: 250 }));
+  } catch (error) {
+    console.warn("Showroom full catalog fetch failed:", error.message);
+  }
+
+  // Then fetch exact aliases per showroom slot. This protects the 5 main cards
+  // when Shopify search ranking does not put the intended product in the first page.
+  for (const slot of SHOWROOM_SLOTS) {
+    for (const q of slot.queries.slice(0, 4)) {
+      try {
+        products = mergeProducts(products, await fetchShopifyProducts({ shop, token, version, shopifyQuery: q, first: 20 }));
+      } catch (error) {
+        console.warn("Showroom alias skipped:", q, error.message);
+      }
+    }
+  }
+
+  return pickShowroomProducts(products);
 }
 
 function mapProducts(data) {
@@ -198,7 +326,7 @@ async function fetchShopifyProducts({ shop, token, version, shopifyQuery, first 
     },
     body: JSON.stringify({
       query,
-      variables: { query: shopifyQuery || "", first: Math.max(1, Math.min(Number(first || 20), 250)) }
+      variables: { query: shopifyQuery || null, first: Math.max(1, Math.min(Number(first || 20), 250)) }
     })
   });
 
@@ -231,6 +359,18 @@ module.exports = async function handler(req, res) {
     }
 
     const rawQuery = String(req.query.q || "").trim();
+    const wantsShowroom = String(req.query.showroom || req.query.mode || "") === "1" || String(req.query.mode || "").toLowerCase() === "showroom";
+
+    if (wantsShowroom) {
+      const showroomProducts = await fetchShowroomProducts({ shop, token, version });
+      return res.status(200).json({
+        ok: true,
+        mode: "showroom",
+        count: showroomProducts.length,
+        products: showroomProducts
+      });
+    }
+
     const aliases = rawQuery ? shopifySearchAliases(rawQuery) : [""];
     let products = [];
 
