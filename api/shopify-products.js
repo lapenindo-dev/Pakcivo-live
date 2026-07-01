@@ -1,5 +1,5 @@
 // api/shopify-products.js
-// v6.0.7 — Shopify showroom search with locked product-card images for Pak Civo Live
+// v6.0.8 — Shopify showroom search with public-product JSON image enrichment for Pak Civo Live
 
 function normalizeText(value) {
   return String(value || "")
@@ -167,6 +167,119 @@ function productHasImage(product) {
   return false;
 }
 
+function normalizeShopifyImageUrl(value) {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const clean = value.trim();
+    if (!clean) return "";
+    if (/^https?:\/\//i.test(clean)) return clean;
+    if (/^\/\//.test(clean)) return `https:${clean}`;
+    if (/^\//.test(clean)) return `https://${process.env.SHOPIFY_PUBLIC_STORE_DOMAIN || process.env.SHOPIFY_STORE_DOMAIN || "civo-meat.myshopify.com"}${clean}`;
+    return "";
+  }
+  if (typeof value === "object") {
+    return normalizeShopifyImageUrl(
+      value.url || value.src || value.originalSrc || value.transformedSrc || value.secure_url || value.image || value.featured_image || value.featuredImage
+    );
+  }
+  return "";
+}
+
+function firstImageFromAnyProductShape(product) {
+  const direct = normalizeShopifyImageUrl(
+    product?.image || product?.featuredImage || product?.featured_image || product?.featuredImageUrl || product?.imageUrl || product?.src
+  );
+  if (direct) return direct;
+
+  if (Array.isArray(product?.images)) {
+    for (const image of product.images) {
+      const url = normalizeShopifyImageUrl(image);
+      if (url) return url;
+    }
+  }
+
+  if (Array.isArray(product?.variants)) {
+    for (const variant of product.variants) {
+      const url = normalizeShopifyImageUrl(variant?.image || variant?.featured_image || variant?.featuredImage || variant?.imageUrl);
+      if (url) return url;
+    }
+  }
+
+  return "";
+}
+
+function numericIdFromGid(value) {
+  const match = String(value || "").match(/\/(\d+)$/);
+  return match ? match[1] : String(value || "");
+}
+
+async function fetchPublicProductJson(shop, handle) {
+  if (!shop || !handle) return null;
+  const url = `https://${shop}/products/${encodeURIComponent(handle)}.js`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Accept": "application/json,text/javascript,*/*" }
+  });
+  if (!response.ok) return null;
+  return await response.json();
+}
+
+async function enrichProductImageFromPublicJson(product, { shop }) {
+  if (!product || !product.handle) return product;
+
+  // Storefront API images are already Shopify images. The public .js endpoint is
+  // used only when Storefront returns product data but image fields are empty.
+  if (firstImageFromAnyProductShape(product)) return product;
+
+  try {
+    const publicProduct = await fetchPublicProductJson(shop, product.handle);
+    if (!publicProduct) return product;
+
+    const publicImages = []
+      .concat(Array.isArray(publicProduct.images) ? publicProduct.images : [])
+      .concat(publicProduct.featured_image ? [publicProduct.featured_image] : [])
+      .map((image) => normalizeShopifyImageUrl(image))
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index);
+
+    const primaryImage = normalizeShopifyImageUrl(publicProduct.featured_image) || publicImages[0] || "";
+    if (!primaryImage) return product;
+
+    const publicVariants = Array.isArray(publicProduct.variants) ? publicProduct.variants : [];
+    const variantImageByNumericId = new Map();
+    for (const variant of publicVariants) {
+      const vImage = normalizeShopifyImageUrl(variant?.featured_image || variant?.image || variant?.image_url) || primaryImage;
+      if (variant?.id && vImage) variantImageByNumericId.set(String(variant.id), vImage);
+    }
+
+    const variants = Array.isArray(product.variants) ? product.variants.map((variant) => {
+      const currentImage = normalizeShopifyImageUrl(variant?.image || variant?.featuredImage || variant?.featured_image);
+      const numericId = numericIdFromGid(variant?.id);
+      return {
+        ...variant,
+        image: currentImage || variantImageByNumericId.get(numericId) || primaryImage,
+        imageAltText: variant?.imageAltText || publicProduct.title || product.title || ""
+      };
+    }) : [];
+
+    return {
+      ...product,
+      image: primaryImage,
+      featuredImage: { url: primaryImage, altText: publicProduct.title || product.title || "" },
+      images: publicImages.map((url) => ({ url, altText: publicProduct.title || product.title || "" })),
+      variants
+    };
+  } catch (error) {
+    console.warn("Public Shopify product image enrichment skipped:", product.handle, error.message);
+    return product;
+  }
+}
+
+async function enrichProductsWithPublicImages(products, { shop }) {
+  const list = Array.isArray(products) ? products : [];
+  return Promise.all(list.map((product) => enrichProductImageFromPublicJson(product, { shop })));
+}
+
 function hasAvailableVariant(product) {
   return Array.isArray(product?.variants) && product.variants.some((variant) => variant?.id && variant.availableForSale !== false);
 }
@@ -239,7 +352,8 @@ async function fetchShowroomProducts({ shop, token, version }) {
     }
   }
 
-  return pickShowroomProducts(products);
+  const picked = pickShowroomProducts(products);
+  return enrichProductsWithPublicImages(picked, { shop });
 }
 
 function mapProducts(data) {
@@ -392,6 +506,7 @@ module.exports = async function handler(req, res) {
       ranked = mergeProducts(ranked, rankProducts(catalog, rawQuery, 20)).slice(0, 20);
     }
 
+    ranked = await enrichProductsWithPublicImages(ranked, { shop });
     return res.status(200).json({ ok: true, query: rawQuery, aliasesUsed: aliases, count: ranked.length, products: ranked });
   } catch (error) {
     return res.status(error.status || 500).json({ ok: false, error: error.message, errors: error.details || undefined });
