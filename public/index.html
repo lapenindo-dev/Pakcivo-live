@@ -345,6 +345,26 @@ button, input { font-family: inherit; }
   box-shadow:0 6px 18px rgba(200,133,74,0.35);
 }
 .checkout-btn:active { transform:scale(0.96); }
+.cart-confirm-card{
+  margin-top:8px;
+  padding:10px;
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(255,247,228,.12),rgba(200,133,74,.10));
+  border:1px solid rgba(200,133,74,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.cart-confirm-title{font-size:11px;font-weight:950;color:var(--copper);letter-spacing:.04em;margin-bottom:5px;text-transform:uppercase;}
+.cart-confirm-body{font-size:12px;line-height:1.42;color:rgba(245,237,208,.96);}
+.cart-confirm-product{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px;border-radius:12px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);}
+.cart-confirm-product img{width:42px;height:42px;border-radius:10px;object-fit:cover;background:rgba(255,255,255,.08);}
+.cart-confirm-product .cf-name{font-weight:950;color:#fff;font-size:12px;line-height:1.2;}
+.cart-confirm-product .cf-meta{font-size:10px;color:rgba(245,237,208,.72);margin-top:3px;font-weight:800;}
+.cart-confirm-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+.cart-confirm-actions button{border:none;border-radius:999px;padding:9px 11px;font-size:11px;font-weight:950;cursor:pointer;}
+.cart-confirm-actions .confirm{background:linear-gradient(135deg,#B72014,#7A160F);color:white;box-shadow:0 8px 18px rgba(183,32,20,.26);}
+.cart-confirm-actions .cancel{background:rgba(255,255,255,.10);color:rgba(245,237,208,.92);border:1px solid rgba(255,255,255,.12);}
+.cart-confirm-actions button:active{transform:scale(.96);}
+
 .tydots{display:flex;gap:4px;align-items:center;padding:3px 0;}
 .td{width:6px;height:6px;border-radius:50%;background:var(--copper);animation:tdB 1s infinite;}
 .td:nth-child(2){animation-delay:.15s}.td:nth-child(3){animation-delay:.3s}
@@ -879,7 +899,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.1.0-live-video-background";
+const APP_VERSION = "v6.2.0-confirm-cart-control";
 console.log("Tokopakcivo", APP_VERSION);
 (function initPakCivoLiveVideo(){
   const stage = document.getElementById("stage");
@@ -983,6 +1003,7 @@ const PRODUCTS = [
   }
 ];
 let curProd=0,cartCount=0,isLoading=false,cartItems=[],cartLines=[],latestCheckoutUrl="";
+let pendingCartAction=null;
 let messages=[{role:"assistant",content:"Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik!"}];
 let shopifyCatalogReady=false;
 let productHydrationStarted=false;
@@ -2135,24 +2156,307 @@ async function fetchJsonWithTimeout(url, options, timeoutMs){
     clearTimeout(timer);
   }
 }
+
+function normalizeCartText(value){
+  return String(value||"").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9\s]/g," ")
+    .replace(/\s+/g," ").trim();
+}
+function productSearchText(p){
+  return normalizeCartText([
+    p?.id, p?.name, p?.query, p?.shopifyName, p?.hook,
+    ...(Array.isArray(p?.shopifyQueries)?p.shopifyQueries:[])
+  ].filter(Boolean).join(" "));
+}
+function productMatchScore(text, p){
+  const n=normalizeCartText(text);
+  const corpus=productSearchText(p);
+  if(!n || !corpus) return 0;
+  let score=0;
+  const aliases=[p?.name,p?.query,p?.shopifyName,...(Array.isArray(p?.shopifyQueries)?p.shopifyQueries:[])].filter(Boolean).map(normalizeCartText);
+  aliases.forEach(alias=>{ if(alias && n.includes(alias)) score+=24; });
+  const important={samcan:10,pork:4,belly:8,import:9,lokal:9,local:9,giling:12,ground:10,minced:10,paikut:14,bakut:12,ribs:9,kapsim:14,shoulder:10};
+  Object.keys(important).forEach(k=>{ if(n.includes(k) && corpus.includes(k)) score+=important[k]; });
+  const tokens=n.split(" ").filter(w=>w.length>=4);
+  tokens.forEach(w=>{ if(corpus.includes(w)) score+=3; });
+  return score;
+}
+function getProductByVariantId(variantId){
+  return PRODUCTS.find(p=>String(p.variantId||"")===String(variantId||"")) || null;
+}
+function cartLineProduct(line){
+  return getProductByVariantId(line?.variantId) || PRODUCTS.find(p=>normalizeCartText(p.name)===normalizeCartText(line?.name)) || null;
+}
+function findProductInCatalog(text){
+  const ranked=PRODUCTS.map((p,i)=>({p,i,score:productMatchScore(text,p)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  if(!ranked.length) return {product:null, ambiguous:false, matches:[]};
+  const top=ranked[0];
+  const ties=ranked.filter(x=>x.score>=top.score-2 && x.score>=10);
+  const n=normalizeCartText(text);
+  if(ties.length>1 && !/\b(import|lokal|local|giling|paikut|bakut|kapsim|shoulder)\b/.test(n)){
+    return {product:null, ambiguous:true, matches:ties.map(x=>x.p)};
+  }
+  return {product:top.p, ambiguous:false, matches:ranked.map(x=>x.p)};
+}
+function findCartLineByText(text){
+  const ranked=(cartLines||[]).map((line)=>{
+    const p=cartLineProduct(line) || {name:line.name, query:line.name, shopifyQueries:[line.name]};
+    return {line, product:p, score:productMatchScore(text,p)};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  if(!ranked.length) return {line:null, ambiguous:false, matches:[]};
+  const top=ranked[0];
+  const ties=ranked.filter(x=>x.score>=top.score-2 && x.score>=10);
+  if(ties.length>1) return {line:null, ambiguous:true, matches:ties.map(x=>x.line)};
+  return {line:top.line, ambiguous:false, matches:ranked.map(x=>x.line)};
+}
+function extractQty(text, fallback){
+  const n=normalizeCartText(text);
+  const wordMap={satu:1,sebungkus:1,sepack:1,dua:2,tiga:3,empat:4,lima:5,enam:6,tujuh:7,delapan:8,sembilan:9,sepuluh:10};
+  const m=n.match(/\b(\d{1,2})\b/);
+  if(m) return Math.max(1, Math.min(99, Number(m[1])));
+  for(const [word,num] of Object.entries(wordMap)){ if(new RegExp('\\b'+word+'\\b').test(n)) return num; }
+  return fallback||1;
+}
+function isAffirmativeText(text){
+  return /^(ya|iya|ok|oke|benar|betul|boleh|lanjut|setuju|jadi|y|yes|confirm|masukkan|ubah|hapus)\b/i.test(String(text||"").trim());
+}
+function isNegativeText(text){
+  return /^(tidak|nggak|ga|gak|batal|cancel|jangan|no|skip)\b/i.test(String(text||"").trim());
+}
+function cartActionToNextLines(action){
+  const next=cloneCartLines(cartLines);
+  if(!action) return next;
+  if(action.type==="add") return buildNextCartLines(action.product, action.qty||1);
+  if(action.type==="clear") return [];
+  const variantId=String(action.variantId || action.line?.variantId || "");
+  const idx=next.findIndex(line=>String(line.variantId)===variantId);
+  if(idx<0) return next;
+  if(action.type==="remove"){
+    next.splice(idx,1);
+    return next;
+  }
+  if(action.type==="setQty"){
+    const qty=Math.max(0, Math.min(99, Number(action.targetQty||0)));
+    if(qty<=0) next.splice(idx,1);
+    else next[idx].quantity=qty;
+    return next;
+  }
+  if(action.type==="reduce"){
+    const current=Math.max(1, Number(next[idx].quantity||1));
+    const qty=Math.max(0, current - Math.max(1, Number(action.qty||1)));
+    if(qty<=0) next.splice(idx,1);
+    else next[idx].quantity=qty;
+    return next;
+  }
+  return next;
+}
+function pendingActionTitle(action){
+  if(!action) return "Konfirmasi Keranjang";
+  if(action.type==="add") return "Konfirmasi Tambah Keranjang";
+  if(action.type==="remove") return "Konfirmasi Hapus Produk";
+  if(action.type==="clear") return "Konfirmasi Kosongkan Keranjang";
+  return "Konfirmasi Ubah Quantity";
+}
+function pendingActionProductName(action){
+  if(!action) return "Produk";
+  if(action.type==="add") return action.product?.name || "Produk";
+  if(action.type==="clear") return "Semua produk di keranjang";
+  return action.line?.name || action.product?.name || "Produk";
+}
+function pendingActionMeta(action){
+  if(!action) return "";
+  if(action.type==="add") return `${action.product?.price||""} ${action.product?.unit||""} • tambah ${action.qty||1}`.trim();
+  if(action.type==="remove") return `Qty sekarang: ${action.currentQty||action.line?.quantity||1}`;
+  if(action.type==="clear") return `Total item sekarang: ${getCartQuantity(cartLines)}`;
+  if(action.type==="setQty") return `Qty sekarang: ${action.currentQty||action.line?.quantity||1} → jadi ${action.targetQty}`;
+  if(action.type==="reduce") return `Qty sekarang: ${action.currentQty||action.line?.quantity||1} → kurangi ${action.qty||1}`;
+  return "";
+}
+function pendingActionMessage(action){
+  if(!action) return "Konfirmasi dulu ya, Kak.";
+  if(action.type==="add") return `Mau saya masukkan <strong>${escapeHtml(action.product?.name||"produk ini")}</strong> ke keranjang?`;
+  if(action.type==="remove") return `Mau saya hapus <strong>${escapeHtml(action.line?.name||"produk ini")}</strong> dari keranjang?`;
+  if(action.type==="clear") return `Mau saya kosongkan semua isi keranjang?`;
+  if(action.type==="setQty") return `Mau saya ubah <strong>${escapeHtml(action.line?.name||"produk ini")}</strong> dari ${escapeHtml(action.currentQty||action.line?.quantity||1)} menjadi ${escapeHtml(action.targetQty)}?`;
+  if(action.type==="reduce"){
+    const nextQty=Math.max(0, Number(action.currentQty||action.line?.quantity||1)-Number(action.qty||1));
+    return `Mau saya kurangi <strong>${escapeHtml(action.line?.name||"produk ini")}</strong> menjadi ${escapeHtml(nextQty)}?`;
+  }
+  return "Konfirmasi dulu ya, Kak.";
+}
+function renderPendingCartConfirmation(action, source){
+  pendingCartAction={...action, source:source||"unknown", createdAt:Date.now()};
+  const rb=document.getElementById("pcReply");
+  const pcTextEl=document.getElementById("pcText");
+  if(!rb || !pcTextEl) return;
+  const product=action.product || cartLineProduct(action.line) || null;
+  const image=action.type==="clear" ? ICONS.cartCheckout : (productImageSrc(product) || productImageSrc(action.line) || ICONS.cartCheckout);
+  const confirmLabel=action.type==="add" ? "Ya, masukkan" : action.type==="remove" ? "Ya, hapus" : action.type==="clear" ? "Ya, kosongkan" : "Ya, ubah";
+  pcTextEl.innerHTML=`
+    <div class="cart-confirm-card">
+      <div class="cart-confirm-title">${escapeHtml(pendingActionTitle(action))}</div>
+      <div class="cart-confirm-body">${pendingActionMessage(action)}</div>
+      <div class="cart-confirm-product">
+        <img src="${escapeHtml(image)}" alt="">
+        <div>
+          <div class="cf-name">${escapeHtml(pendingActionProductName(action))}</div>
+          <div class="cf-meta">${escapeHtml(pendingActionMeta(action))}</div>
+        </div>
+      </div>
+      <div class="cart-confirm-actions">
+        <button class="confirm" type="button" onclick="confirmPendingCartAction()">${escapeHtml(confirmLabel)}</button>
+        <button class="cancel" type="button" onclick="cancelPendingCartAction()">Batal</button>
+      </div>
+    </div>`;
+  rb.style.display="block";
+  trackEvent("cart_confirmation_shown", {type:action.type, source:source||"unknown", name:pendingActionProductName(action)});
+}
+function showCartClarification(message){
+  const rb=document.getElementById("pcReply");
+  const pcTextEl=document.getElementById("pcText");
+  if(rb && pcTextEl){ pcTextEl.innerHTML=fmt(message); rb.style.display="block"; }
+  try{speak(message.replace(/<[^>]+>/g,""));}catch(e){}
+}
+function detectCartRequest(text){
+  const n=normalizeCartText(text);
+  if(!n) return null;
+  const wantsClear=/\b(kosongkan|clear|hapus semua|empty)\b/.test(n) && /\b(keranjang|cart)\b/.test(n);
+  if(wantsClear){
+    if(!cartLines.length){ showCartClarification("Keranjang masih kosong, Kak."); return {handled:true}; }
+    return {type:"clear"};
+  }
+  const removeIntent=/\b(hapus|batalin|batalkan|remove|delete|jangan jadi|keluarin)\b/.test(n);
+  const reduceIntent=/\b(kurangi|kurangin|dikurangi|kurang|jadi|ubah qty|ubah quantity|ubah jumlah|1 aja|satu aja|dua aja|tiga aja)\b/.test(n);
+  const addIntent=/\b(tambah|tambahkan|masukkan|masukin|add|ambil|mau|pesan|order|beli)\b/.test(n);
+
+  if(removeIntent || reduceIntent){
+    if(!cartLines.length){ showCartClarification("Keranjang masih kosong, Kak. Belum ada produk yang bisa saya ubah."); return {handled:true}; }
+    const found=findCartLineByText(text);
+    if(found.ambiguous){
+      const opts=found.matches.map((line,i)=>`${i+1}. ${line.name} x${line.quantity}`).join("<br>");
+      showCartClarification(`Yang mau diubah yang mana, Kak?<br>${opts}`);
+      return {handled:true};
+    }
+    if(!found.line){ return null; }
+    const currentQty=Math.max(1, Number(found.line.quantity||1));
+    if(removeIntent){ return {type:"remove", line:found.line, variantId:found.line.variantId, currentQty}; }
+    const hasExplicitSet=/\b(jadi|ubah|1 aja|satu aja|dua aja|tiga aja|empat aja|lima aja)\b/.test(n);
+    const qty=extractQty(text, 1);
+    if(hasExplicitSet){ return {type:"setQty", line:found.line, variantId:found.line.variantId, currentQty, targetQty:qty}; }
+    return {type:"reduce", line:found.line, variantId:found.line.variantId, currentQty, qty};
+  }
+
+  if(addIntent){
+    const found=findProductInCatalog(text);
+    if(found.ambiguous){
+      const opts=found.matches.slice(0,4).map((p,i)=>`${i+1}. ${p.name} — ${p.price}`).join("<br>");
+      showCartClarification(`Ada beberapa pilihan. Mau saya masukkan yang mana, Kak?<br>${opts}`);
+      revealProducts("cart_add_ambiguous");
+      return {handled:true};
+    }
+    if(found.product){
+      return {type:"add", product:found.product, qty:extractQty(text,1)};
+    }
+  }
+  return null;
+}
+async function performCartAction(action){
+  if(!action) return false;
+  if(!ensureLeadReady()) return false;
+  const previousLines=cloneCartLines(cartLines);
+  const nextLines=cartActionToNextLines(action);
+  syncCartState(nextLines);
+  try{
+    if(nextLines.length){
+      const result=await createCheckoutForCartLines(nextLines);
+      latestCheckoutUrl=result.checkoutUrl;
+      syncCartState(nextLines);
+      const totalQty=getCartQuantity(cartLines);
+      const msg= action.type==="add"
+        ? `Siap Kak, ${pendingActionProductName(action)} sudah saya masukkan ke keranjang. Total item: **${totalQty}**.\n${renderCartSummary(cartLines)}`
+        : `Siap Kak, keranjang sudah saya update. Total item: **${totalQty}**.\n${renderCartSummary(cartLines)}`;
+      document.getElementById("pcText").innerHTML=fmt(msg, result.checkoutUrl);
+      document.getElementById("pcReply").style.display="block";
+      messages.push({role:"assistant",content:`Keranjang diupdate. Total item ${totalQty}: ${result.checkoutUrl}`});
+      speak(action.type==="add" ? "Siap Kak, produk sudah saya masukkan ke keranjang." : "Siap Kak, keranjang sudah saya update.");
+    }else{
+      clearCartState();
+      const msg="Siap Kak, keranjang sudah kosong.";
+      document.getElementById("pcText").innerHTML=fmt(msg);
+      document.getElementById("pcReply").style.display="block";
+      messages.push({role:"assistant",content:msg});
+      speak(msg);
+    }
+    trackEvent("cart_action_confirmed", {type:action.type, name:pendingActionProductName(action), qty:getCartQuantity(cartLines)});
+    return true;
+  }catch(error){
+    console.error("Cart action failed:", error);
+    syncCartState(previousLines);
+    latestCheckoutUrl="";
+    const msg=`Maaf Kak, keranjang Shopify belum berhasil diupdate.<br><br><b>Error:</b> ${escapeHtml(error.message || "Unknown error")}<br><br>Silakan coba lagi atau hubungi admin.`;
+    document.getElementById("pcText").innerHTML=msg;
+    document.getElementById("pcReply").style.display="block";
+    return false;
+  }
+}
+async function confirmPendingCartAction(){
+  if(!pendingCartAction){ showToast("Tidak ada perubahan keranjang yang menunggu konfirmasi.", "info"); return; }
+  if(!ensureLeadReady()) return;
+  const action=pendingCartAction;
+  pendingCartAction=null;
+  await performCartAction(action);
+}
+function cancelPendingCartAction(){
+  pendingCartAction=null;
+  const msg="Baik Kak, saya batalkan perubahan keranjangnya.";
+  document.getElementById("pcText").innerHTML=fmt(msg);
+  document.getElementById("pcReply").style.display="block";
+  try{speak("Baik Kak, saya batalkan.");}catch(e){}
+}
+function handlePendingCartReply(text){
+  if(!pendingCartAction) return false;
+  if(isAffirmativeText(text)){ confirmPendingCartAction(); return true; }
+  if(isNegativeText(text)){ cancelPendingCartAction(); return true; }
+  return false;
+}
+function appendUserBubble(text){
+  const ub=document.createElement("div");ub.className="cbubble";
+  ub.innerHTML=`<div class="cbav" style="background:var(--copper)">K</div><div class="cbtxt"><span class="cbname" style="color:var(--copper)">Kamu</span> ${escapeHtml(text)}</div>`;
+  const cb=document.getElementById("chatBubbles");cb.appendChild(ub);
+  if(cb.children.length>4)cb.removeChild(cb.children[0]);
+}
+window.confirmPendingCartAction=confirmPendingCartAction;
+window.cancelPendingCartAction=cancelPendingCartAction;
+
 async function send(){
   if(isLoading)return;
   stopVoice();
   try{getCtx().resume();}catch(e){}
   const inp=document.getElementById("msgInput");
   const text=inp.value.trim();if(!text)return;
+  inp.value="";
+  if(isProductIntent(text)) revealProducts("chat_intent");
+  appendUserBubble(text);
+
+  if(handlePendingCartReply(text)){
+    messages.push({role:"user",content:text});
+    trackEvent("cart_confirmation_reply", {text:normalizeCartText(text).slice(0,40)});
+    return;
+  }
+
+  const cartRequest=detectCartRequest(text);
+  if(cartRequest){
+    messages.push({role:"user",content:text});
+    if(!cartRequest.handled) renderPendingCartConfirmation(cartRequest, "chat_text");
+    return;
+  }
+
   if(shouldOpenLeadForChat(text)){
     showLeadGate();
     setTimeout(()=>document.getElementById("leadName")?.focus(),120);
     return;
   }
-  inp.value="";
-  if(isProductIntent(text)) revealProducts("chat_intent");
-
-  const ub=document.createElement("div");ub.className="cbubble";
-  ub.innerHTML=`<div class="cbav" style="background:var(--copper)">K</div><div class="cbtxt"><span class="cbname" style="color:var(--copper)">Kamu</span> ${escapeHtml(text)}</div>`;
-  const cb=document.getElementById("chatBubbles");cb.appendChild(ub);
-  if(cb.children.length>4)cb.removeChild(cb.children[0]);
 
   const rb=document.getElementById("pcReply");
   document.getElementById("pcText").innerHTML='<div class="tydots"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
@@ -2213,19 +2517,11 @@ async function send(){
       }
     }
     if(cm){
-      const pidx=Math.min(parseInt(cm[1].replace("p",""))-1,PRODUCTS.length-1);
+      const pidx=Math.min(parseInt(cm[1].replace("p","")||"1")-1,PRODUCTS.length-1);
       const product=PRODUCTS[pidx];
       if(product && product.variantId){
         const qty=Math.max(1, Number(cm[2]||1));
-        const nextLines=buildNextCartLines(product, qty);
-        syncCartState(nextLines);
-        try{
-          const cartResult=await createCheckoutForCartLines(nextLines);
-          latestCheckoutUrl=cartResult.checkoutUrl;
-          saveCartState();
-        }catch(cartErr){
-          console.warn("AI cart command checkout failed", cartErr);
-        }
+        renderPendingCartConfirmation({type:"add", product, qty}, "ai_cart_marker");
       }
     }
 
@@ -2358,7 +2654,6 @@ function renderCartSummary(lines){
 }
 async function addToCart(e){
   if(e){ e.preventDefault(); e.stopPropagation(); }
-  if(!ensureLeadReady())return;
   if(isLoading)return;
   const p=PRODUCTS[curProd];
   if(!p || !p.variantId){
@@ -2366,51 +2661,7 @@ async function addToCart(e){
     else showToast("Produk belum tersedia.", "error");
     return;
   }
-
-  const btn=e.currentTarget;
-  const oldText=btn.textContent;
-  const previousLines=cloneCartLines(cartLines);
-  const nextLines=buildNextCartLines(p);
-
-  btn.disabled=true;
-  btn.textContent="Update keranjang...";
-
-  // Immediate visual feedback; rollback if Shopify fails.
-  syncCartState(nextLines);
-
-  try{
-    const result=await createCheckoutForCartLines(nextLines);
-    latestCheckoutUrl=result.checkoutUrl;
-    syncCartState(nextLines);
-    trackEvent("add_to_cart", {name:p.name, quantity:getCartQuantity(nextLines), checkoutMode:result.mode});
-
-    const rb=document.getElementById("pcReply");
-    const pcTextEl=document.getElementById("pcText");
-    const totalQty=getCartQuantity(cartLines);
-    const html=fmt(
-      `Siap Kak, keranjang sudah saya update. Total item: **${totalQty}**.\n${renderCartSummary(cartLines)}`,
-      result.checkoutUrl
-    );
-    pcTextEl.innerHTML=html;
-    rb.style.display="block";
-    messages.push({role:"assistant",content:`Checkout dibuat/update. Total item ${totalQty}: ${result.checkoutUrl}`});
-    speak("Keranjang sudah saya update, Kak. Silakan checkout kalau sudah lengkap.");
-  }catch(error){
-    console.error("Add to cart failed:", error);
-    latestCheckoutUrl="";
-    syncCartState(previousLines);
-    const rb=document.getElementById("pcReply");
-    const pcTextEl=document.getElementById("pcText");
-    if(rb && pcTextEl){
-      pcTextEl.innerHTML=`Maaf Kak, keranjang Shopify belum berhasil dibuat.<br><br><b>Error:</b> ${escapeHtml(error.message || "Unknown error")}<br><br>Silakan coba lagi atau hubungi admin.`;
-      rb.style.display="block";
-    }else{
-      showToast("Checkout gagal: "+(error.message || "Unknown error"), "error");
-    }
-  }finally{
-    btn.disabled=false;
-    btn.textContent=oldText;
-  }
+  renderPendingCartConfirmation({type:"add", product:p, qty:1}, "product_button");
 }
 window.addToCart = addToCart;
 window.showCart = showCart;
