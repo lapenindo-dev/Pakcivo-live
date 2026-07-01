@@ -869,7 +869,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.8-shopify-public-images";
+const APP_VERSION = "v6.0.9-shopify-public-catalog-images";
 console.log("Tokopakcivo", APP_VERSION);
 const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
@@ -1242,6 +1242,7 @@ function cleanProductName(title){
   return String(title||"Produk")
     .replace(/\b(daging\s+)?babi\b/gi, "")
     .replace(/\bpork\b/gi, "")
+    .replace(/\bfresh\b/gi, "")
     .replace(/\bfrozen\b/gi, "")
     .replace(/\bvacuum\s*pack\b/gi, "")
     .replace(/\s{2,}/g," ")
@@ -1323,32 +1324,47 @@ function productIconHtml(p, cls){
   }
   const fallbackCls=cls==="ps-icon" ? "ps-icon product-fallback" : "product-fallback";
   if(!shopifyCatalogReady){
-    return `<span class="${fallbackCls} product-loading" aria-label="Memuat foto Shopify">Foto Shopify</span>`;
+    return `<span class="${fallbackCls} product-loading" aria-label="Memuat foto Shopify">Sync Shopify</span>`;
   }
-  return `<span class="${fallbackCls} product-loading" aria-label="Foto Shopify belum tersedia">Foto belum ada</span>`;
+  return `<span class="${fallbackCls} product-loading" aria-label="Foto Shopify belum tersedia">Cek produk</span>`;
+}
+function firstUsableVariant(variants){
+  const list=Array.isArray(variants)?variants:[];
+  return list.find(v=>v && v.availableForSale!==false && v.id) || list.find(v=>v && v.id) || list.find(v=>v) || null;
+}
+function productPriceFromAny(prod, variant){
+  const direct=variant?.price ?? prod?.price ?? prod?.priceMin ?? prod?.price_min ?? prod?.minPrice;
+  const formatted=formatShopifyPriceToRb(direct);
+  if(formatted) return formatted;
+  const amount=prod?.priceRange?.minVariantPrice?.amount || prod?.priceRangeV2?.minVariantPrice?.amount;
+  return formatShopifyPriceToRb(amount) || "";
 }
 function productFromShopifyProduct(prod){
+  if(!prod) return null;
   const variants=Array.isArray(prod?.variants)?prod.variants:[];
-  const variant=variants.find(v=>v && v.availableForSale!==false && v.id) || variants.find(v=>v && v.id) || null;
-  if(!prod || !variant || !variant.id) return null;
+  const variant=firstUsableVariant(variants);
   const name=cleanProductName(prod.title);
-  const image=shopifyVariantImage(prod, variant);
+  const image=shopifyVariantImage(prod, variant) || productImageSrc(prod);
+  const handle=prod.handle || "";
+  const productUrl=prod.onlineStoreUrl || (handle ? `${SHOPIFY_STORE_BASE}/products/${encodeURIComponent(handle)}` : "");
+  if(!name && !image && !productUrl) return null;
+  const variantId=variant?.id || "";
   return {
-    id: prod.handle || prod.id || variant.id,
-    name,
+    id: handle || prod.id || variantId || name,
+    name: name || "Produk CIVO MEAT",
     desc: prod.description || "",
-    price: formatShopifyPriceToRb(variant.price) || "",
-    unit: inferUnitFromTitle(prod.title, variant.title),
+    price: productPriceFromAny(prod, variant),
+    unit: inferUnitFromTitle(prod.title, variant?.title),
     emoji: emojiForProduct(`${prod.title||""} ${prod.productType||""}`),
     icon: null,
     query: prod.title || name,
-    handle: prod.handle || "",
-    productUrl: prod.onlineStoreUrl || (prod.handle ? `${SHOPIFY_STORE_BASE}/products/${encodeURIComponent(prod.handle)}` : ""),
-    variantId: variant.id,
+    handle,
+    productUrl,
+    variantId,
     image,
     shopifyImage: image,
     images: Array.isArray(prod.images) ? prod.images : [],
-    availableForSale: variant.availableForSale!==false
+    availableForSale: variant ? variant.availableForSale!==false : true
   };
 }
 function bestSellerRankFromShopifyProduct(prod){
@@ -1493,7 +1509,7 @@ function setProduct(idx){
   if(btn){
     const disabled=!p.variantId || p.availableForSale===false;
     btn.disabled=disabled;
-    btn.textContent=disabled ? "Stok habis" : "+ Keranjang";
+    btn.textContent=!p.variantId ? "Buka Produk" : (disabled ? "Stok habis" : "+ Keranjang");
   }
   const linkBtn=document.getElementById("openProductBtn");
   if(linkBtn){
@@ -1529,7 +1545,8 @@ function refreshProductStrip(){
     el.setAttribute("role","button");
     el.tabIndex=0;
     const photo=productIconHtml(p,"ps-icon");
-    el.innerHTML=`${photo}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-hook">${escapeHtml(p.hook||"Rekomendasi Pak Civo")}</span><span class="ps-p">${escapeHtml(p.price||"")}</span><button type="button" class="ps-link" aria-label="Buka produk Shopify ${escapeHtml(p.name)}" onclick="openProductByIndex(event, ${i})">↗</button><button type="button" class="ps-add" aria-label="Tambah ${escapeHtml(p.name)}" onclick="addProductByIndex(event, ${i})">+</button>`;
+    const canAdd=!!p.variantId && p.availableForSale!==false;
+    el.innerHTML=`${photo}<span class="ps-n">${escapeHtml(shortProductLabel(p.name))}</span><span class="ps-hook">${escapeHtml(p.hook||"Rekomendasi Pak Civo")}</span><span class="ps-p">${escapeHtml(p.price||"")}</span><button type="button" class="ps-link" aria-label="Buka produk Shopify ${escapeHtml(p.name)}" onclick="openProductByIndex(event, ${i})">↗</button><button type="button" class="ps-add" aria-label="Tambah ${escapeHtml(p.name)}" onclick="addProductByIndex(event, ${i})" ${canAdd?"":"disabled"}>+</button>`;
     el.onclick=(ev)=>{ openProductByIndex(ev, i); };
     el.onkeydown=(ev)=>{ if(ev.key==="Enter" || ev.key===" "){ ev.preventDefault(); openProductByIndex(ev, i); } };
     ps.appendChild(el);
@@ -1583,6 +1600,10 @@ async function addProductByIndex(event, idx){
   if(event){ event.preventDefault(); event.stopPropagation(); }
   setProduct(idx);
   revealProducts("strip_add");
+  if(!PRODUCTS[curProd]?.variantId){
+    openProduct(PRODUCTS[curProd], "product_strip_add_no_variant");
+    return;
+  }
   return addToCart(event);
 }
 
@@ -1611,7 +1632,10 @@ async function fetchShopifyShowroomProducts(){
     console.warn("[PakCivo] /api/shopify-products showroom ok:false", data);
     return [];
   }
-  return Array.isArray(data.products) ? data.products : [];
+  
+  const products=Array.isArray(data.products) ? data.products : [];
+  if(!products.length) console.warn("[PakCivo] Shopify showroom returned empty", data.debug || data);
+  return products;
 }
 function applyShopifyShowroomProducts(products){
   const bySlot=new Map();
@@ -2314,7 +2338,8 @@ async function addToCart(e){
   if(isLoading)return;
   const p=PRODUCTS[curProd];
   if(!p || !p.variantId){
-    showToast("Variant ID produk belum tersedia.", "error");
+    if(p){ openProduct(p, "add_cart_no_variant_open_product"); }
+    else showToast("Produk belum tersedia.", "error");
     return;
   }
 
