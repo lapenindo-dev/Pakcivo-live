@@ -364,6 +364,11 @@ button, input { font-family: inherit; }
 .cart-confirm-actions .confirm{background:linear-gradient(135deg,#B72014,#7A160F);color:white;box-shadow:0 8px 18px rgba(183,32,20,.26);}
 .cart-confirm-actions .cancel{background:rgba(255,255,255,.10);color:rgba(245,237,208,.92);border:1px solid rgba(255,255,255,.12);}
 .cart-confirm-actions button:active{transform:scale(.96);}
+.cart-upsell-hint{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;padding:8px 10px;border-radius:12px;background:rgba(200,133,74,.08);border:1px dashed rgba(200,133,74,.4);}
+.cart-upsell-hint span{font-size:11px;color:rgba(245,237,208,.88);line-height:1.35;}
+.cart-upsell-hint span strong{color:var(--copper);}
+.cart-upsell-hint button{flex-shrink:0;border:none;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:950;cursor:pointer;background:linear-gradient(135deg,var(--copper),#8B5E30);color:#fff;box-shadow:0 6px 14px rgba(200,133,74,.3);}
+.cart-upsell-hint button:active{transform:scale(.96);}
 
 .tydots{display:flex;gap:4px;align-items:center;padding:3px 0;}
 .td{width:6px;height:6px;border-radius:50%;background:var(--copper);animation:tdB 1s infinite;}
@@ -2185,6 +2190,61 @@ function productMatchScore(text, p){
 function getProductByVariantId(variantId){
   return PRODUCTS.find(p=>String(p.variantId||"")===String(variantId||"")) || null;
 }
+// Turns a Shopify variantId returned by Pak Civo (AI) into a usable product object.
+// Prefers a match in the local showroom PRODUCTS list; falls back to building one
+// on the fly from `productsUsed` (the Shopify search results the backend already
+// sent along with the reply) so ANY product Pak Civo mentions can be added to the
+// cart, not just the 5 showroom items.
+function resolveProductForVariant(variantId, productsUsed){
+  const vid=String(variantId||"").trim();
+  if(!vid) return null;
+  const local=getProductByVariantId(vid);
+  if(local) return local;
+  const list=Array.isArray(productsUsed)?productsUsed:[];
+  for(const prod of list){
+    const variant=(prod.variants||[]).find(v=>String(v.id)===vid);
+    if(variant){
+      return {
+        id: prod.handle || prod.id || vid,
+        name: prod.title + (variant.title && variant.title!=="Default Title" ? " - "+variant.title : ""),
+        price: formatShopifyPriceToRb(variant.price) || "",
+        unit: "",
+        variantId: variant.id,
+        image: prod.image || "",
+        availableForSale: variant.availableForSale!==false,
+        query: prod.title,
+        shopifyQueries: [prod.title]
+      };
+    }
+  }
+  return null;
+}
+// Self-heal: a showroom product can still have an empty variantId if Shopify
+// hydration hasn't resolved yet when the customer confirms an add (race between
+// hydrateProductsFromShopify() and a fast "tambahkan X" reply). Instead of letting
+// that line get silently dropped later by cloneCartLines() while the UI still says
+// "sudah masuk keranjang", try one live lookup right before we commit the action.
+async function ensureVariantForProduct(product){
+  if(!product) return null;
+  if(product.variantId) return product;
+  try{
+    const q=(Array.isArray(product.shopifyQueries)&&product.shopifyQueries[0]) || product.query || product.name;
+    const candidates=await fetchShopifyProductsForQuery(q);
+    let best=null, bestScore=-999;
+    for(const raw of candidates){
+      const mapped=productFromShopifyProduct(raw);
+      if(!mapped || !mapped.variantId) continue;
+      const score=scoreShopifyProductForBase(raw, mapped, product, 0);
+      if(score>bestScore){ bestScore=score; best=mapped; }
+    }
+    if(best && bestScore>=20){
+      product.variantId=best.variantId;
+      product.price=best.price||product.price;
+      product.image=best.image||product.image;
+    }
+  }catch(e){ console.warn("ensureVariantForProduct failed", e); }
+  return product.variantId ? product : null;
+}
 function cartLineProduct(line){
   return getProductByVariantId(line?.variantId) || PRODUCTS.find(p=>normalizeCartText(p.name)===normalizeCartText(line?.name)) || null;
 }
@@ -2228,6 +2288,13 @@ function cartActionToNextLines(action){
   const next=cloneCartLines(cartLines);
   if(!action) return next;
   if(action.type==="add") return buildNextCartLines(action.product, action.qty||1);
+  if(action.type==="addBatch"){
+    let batchNext=cloneCartLines(cartLines);
+    (action.items||[]).forEach(item=>{
+      if(item.product && item.product.variantId) batchNext=buildNextCartLines(item.product, item.qty||1, batchNext);
+    });
+    return batchNext;
+  }
   if(action.type==="clear") return [];
   const variantId=String(action.variantId || action.line?.variantId || "");
   const idx=next.findIndex(line=>String(line.variantId)===variantId);
@@ -2254,6 +2321,7 @@ function cartActionToNextLines(action){
 function pendingActionTitle(action){
   if(!action) return "Konfirmasi Keranjang";
   if(action.type==="add") return "Konfirmasi Tambah Keranjang";
+  if(action.type==="addBatch") return "Konfirmasi Tambah Beberapa Produk";
   if(action.type==="remove") return "Konfirmasi Hapus Produk";
   if(action.type==="clear") return "Konfirmasi Kosongkan Keranjang";
   return "Konfirmasi Ubah Quantity";
@@ -2261,12 +2329,14 @@ function pendingActionTitle(action){
 function pendingActionProductName(action){
   if(!action) return "Produk";
   if(action.type==="add") return action.product?.name || "Produk";
+  if(action.type==="addBatch") return (action.items||[]).map(x=>x.product?.name).filter(Boolean).join(", ") || "Produk";
   if(action.type==="clear") return "Semua produk di keranjang";
   return action.line?.name || action.product?.name || "Produk";
 }
 function pendingActionMeta(action){
   if(!action) return "";
   if(action.type==="add") return `${action.product?.price||""} ${action.product?.unit||""} • tambah ${action.qty||1}`.trim();
+  if(action.type==="addBatch") return (action.items||[]).map(x=>`${x.product?.name||"Produk"} x${x.qty||1}`).join(" • ");
   if(action.type==="remove") return `Qty sekarang: ${action.currentQty||action.line?.quantity||1}`;
   if(action.type==="clear") return `Total item sekarang: ${getCartQuantity(cartLines)}`;
   if(action.type==="setQty") return `Qty sekarang: ${action.currentQty||action.line?.quantity||1} → jadi ${action.targetQty}`;
@@ -2276,6 +2346,10 @@ function pendingActionMeta(action){
 function pendingActionMessage(action){
   if(!action) return "Konfirmasi dulu ya, Kak.";
   if(action.type==="add") return `Mau saya masukkan <strong>${escapeHtml(action.product?.name||"produk ini")}</strong> ke keranjang?`;
+  if(action.type==="addBatch"){
+    const names=(action.items||[]).map(x=>x.product?.name).filter(Boolean);
+    return `Mau saya masukkan <strong>${escapeHtml(names.join(", ")||"produk ini")}</strong> ke keranjang?`;
+  }
   if(action.type==="remove") return `Mau saya hapus <strong>${escapeHtml(action.line?.name||"produk ini")}</strong> dari keranjang?`;
   if(action.type==="clear") return `Mau saya kosongkan semua isi keranjang?`;
   if(action.type==="setQty") return `Mau saya ubah <strong>${escapeHtml(action.line?.name||"produk ini")}</strong> dari ${escapeHtml(action.currentQty||action.line?.quantity||1)} menjadi ${escapeHtml(action.targetQty)}?`;
@@ -2290,9 +2364,9 @@ function renderPendingCartConfirmation(action, source){
   const rb=document.getElementById("pcReply");
   const pcTextEl=document.getElementById("pcText");
   if(!rb || !pcTextEl) return;
-  const product=action.product || cartLineProduct(action.line) || null;
+  const product=action.type==="addBatch" ? (action.items&&action.items[0]&&action.items[0].product) : (action.product || cartLineProduct(action.line) || null);
   const image=action.type==="clear" ? ICONS.cartCheckout : (productImageSrc(product) || productImageSrc(action.line) || ICONS.cartCheckout);
-  const confirmLabel=action.type==="add" ? "Ya, masukkan" : action.type==="remove" ? "Ya, hapus" : action.type==="clear" ? "Ya, kosongkan" : "Ya, ubah";
+  const confirmLabel=(action.type==="add"||action.type==="addBatch") ? "Ya, masukkan" : action.type==="remove" ? "Ya, hapus" : action.type==="clear" ? "Ya, kosongkan" : "Ya, ubah";
   pcTextEl.innerHTML=`
     <div class="cart-confirm-card">
       <div class="cart-confirm-title">${escapeHtml(pendingActionTitle(action))}</div>
@@ -2318,6 +2392,38 @@ function showCartClarification(message){
   if(rb && pcTextEl){ pcTextEl.innerHTML=fmt(message); rb.style.display="block"; }
   try{speak(message.replace(/<[^>]+>/g,""));}catch(e){}
 }
+// Upsell hook: shown right after ANY successful cart add, no matter which path
+// triggered it (button, typed "tambahkan...", or Pak Civo's own AI reply). Kept as
+// a closed loop across the 5 guaranteed-in-stock showroom items so the suggested
+// add always resolves instantly through the existing deterministic flow.
+const CROSS_SELL_SUGGEST = {
+  "samcan-lokal-1kg": {id:"paikut-sop-500g", reason:"Kuahnya makin gurih kalau ada Paikut Sop"},
+  "babi-giling-500g": {id:"paikut-sop-500g", reason:"Kombo pas: Babi Giling buat isian, Paikut buat kuahnya"},
+  "paikut-sop-500g": {id:"samcan-lokal-1kg", reason:"Samcan pas buat pelengkap protein di kuahnya"},
+  "kapsim-1kg": {id:"samcan-import-1kg", reason:"Upgrade BBQ biar hasilnya lebih juicy"},
+  "samcan-import-1kg": {id:"kapsim-1kg", reason:"Variasi potongan biar BBQ-nya nggak monoton"}
+};
+function buildUpsellHintHtml(addedProductIds){
+  const already=new Set((cartLines||[]).map(l=>String(l.variantId)));
+  for(const pid of (addedProductIds||[])){
+    const sug=CROSS_SELL_SUGGEST[pid];
+    if(!sug) continue;
+    const target=PRODUCTS.find(p=>p.id===sug.id);
+    if(!target || !target.variantId || already.has(String(target.variantId))) continue;
+    return `<div class="cart-upsell-hint">
+      <span>💡 ${escapeHtml(sug.reason)} — <strong>${escapeHtml(target.name)}</strong> ${escapeHtml(target.price||"")}</span>
+      <button type="button" onclick="triggerUpsellAdd('${target.id}')">+ Tambah</button>
+    </div>`;
+  }
+  return "";
+}
+function triggerUpsellAdd(productId){
+  const p=PRODUCTS.find(x=>x.id===productId);
+  if(!p) return;
+  trackEvent("upsell_hint_clicked", {productId});
+  sendQ("tambahkan "+p.name);
+}
+window.triggerUpsellAdd=triggerUpsellAdd;
 function detectCartRequest(text){
   const n=normalizeCartText(text);
   if(!n) return null;
@@ -2364,6 +2470,31 @@ function detectCartRequest(text){
 async function performCartAction(action){
   if(!action) return false;
   if(!ensureLeadReady()) return false;
+
+  // Self-heal before touching cart state: a showroom product can still be missing
+  // its variantId if Shopify hydration hasn't resolved yet. Without this check the
+  // line gets silently dropped later and the customer is told it worked anyway.
+  if(action.type==="add"){
+    action.product=await ensureVariantForProduct(action.product);
+    if(!action.product || !action.product.variantId){
+      const pcTextEl=document.getElementById("pcText");
+      pcTextEl.innerHTML=fmt(`Maaf Kak, data produk ini masih Pak Civo siapkan, coba lagi beberapa detik ya 🙏`);
+      document.getElementById("pcReply").style.display="block";
+      return false;
+    }
+  }else if(action.type==="addBatch"){
+    for(const item of (action.items||[])){
+      item.product=await ensureVariantForProduct(item.product);
+    }
+    action.items=(action.items||[]).filter(item=>item.product && item.product.variantId);
+    if(!action.items.length){
+      const pcTextEl=document.getElementById("pcText");
+      pcTextEl.innerHTML=fmt(`Maaf Kak, data produk yang dimaksud belum siap, coba lagi ya 🙏`);
+      document.getElementById("pcReply").style.display="block";
+      return false;
+    }
+  }
+
   const previousLines=cloneCartLines(cartLines);
   const nextLines=cartActionToNextLines(action);
   syncCartState(nextLines);
@@ -2373,13 +2504,18 @@ async function performCartAction(action){
       latestCheckoutUrl=result.checkoutUrl;
       syncCartState(nextLines);
       const totalQty=getCartQuantity(cartLines);
-      const msg= action.type==="add"
+      const isAdd=action.type==="add"||action.type==="addBatch";
+      const msg= isAdd
         ? `Siap Kak, ${pendingActionProductName(action)} sudah saya masukkan ke keranjang. Total item: **${totalQty}**.\n${renderCartSummary(cartLines)}`
         : `Siap Kak, keranjang sudah saya update. Total item: **${totalQty}**.\n${renderCartSummary(cartLines)}`;
-      document.getElementById("pcText").innerHTML=fmt(msg, result.checkoutUrl);
+      const addedIds=action.type==="add" ? [action.product?.id]
+        : action.type==="addBatch" ? (action.items||[]).map(x=>x.product?.id)
+        : [];
+      const upsellHtml=isAdd ? buildUpsellHintHtml(addedIds.filter(Boolean)) : "";
+      document.getElementById("pcText").innerHTML=fmt(msg, result.checkoutUrl)+upsellHtml;
       document.getElementById("pcReply").style.display="block";
       messages.push({role:"assistant",content:`Keranjang diupdate. Total item ${totalQty}: ${result.checkoutUrl}`});
-      speak(action.type==="add" ? "Siap Kak, produk sudah saya masukkan ke keranjang." : "Siap Kak, keranjang sudah saya update.");
+      speak(isAdd ? "Siap Kak, produk sudah saya masukkan ke keranjang." : "Siap Kak, keranjang sudah saya update.");
     }else{
       clearCartState();
       const msg="Siap Kak, keranjang sudah kosong.";
@@ -2506,22 +2642,16 @@ async function send(){
     });
     if(idx>=0){ setProduct(idx); revealProducts("ai_reply_match"); }
 
-    var cm=null;
-    var cartIdx=reply.indexOf("<<CART:ADD:");
-    if(cartIdx>=0){
-      var cartEnd=reply.indexOf(">>",cartIdx);
-      if(cartEnd>=0){
-        var cartStr=reply.substring(cartIdx+11,cartEnd);
-        var cartParts=cartStr.split(":");
-        if(cartParts.length===2) cm=[null,cartParts[0],cartParts[1]];
-      }
-    }
-    if(cm){
-      const pidx=Math.min(parseInt(cm[1].replace("p","")||"1")-1,PRODUCTS.length-1);
-      const product=PRODUCTS[pidx];
-      if(product && product.variantId){
-        const qty=Math.max(1, Number(cm[2]||1));
-        renderPendingCartConfirmation({type:"add", product, qty}, "ai_cart_marker");
+    const cartCommands=Array.isArray(data.cartCommands)?data.cartCommands:[];
+    if(cartCommands.length){
+      const resolved=cartCommands.map(cmdItem=>({
+        product: resolveProductForVariant(cmdItem.variantId, data.productsUsed),
+        qty: Math.max(1, Math.min(99, Number(cmdItem.quantity||1)))
+      })).filter(x=>x.product && x.product.variantId);
+      if(resolved.length===1){
+        renderPendingCartConfirmation({type:"add", product:resolved[0].product, qty:resolved[0].qty}, "ai_cart_marker");
+      }else if(resolved.length>1){
+        renderPendingCartConfirmation({type:"addBatch", items:resolved}, "ai_cart_marker");
       }
     }
 
@@ -2593,8 +2723,8 @@ function syncCartState(lines, opts){
   updateCartCount(getCartQuantity(cartLines));
   if(!opts || opts.persist!==false) saveCartState();
 }
-function buildNextCartLines(product, qty){
-  const next = cloneCartLines(cartLines);
+function buildNextCartLines(product, qty, base){
+  const next = cloneCartLines(base || cartLines);
   const existing = next.find(line => line.variantId === product.variantId);
   const addQty = Math.max(1, Math.min(99, Number(qty||1)));
   if(existing){
