@@ -1,5 +1,27 @@
 # Pak Civo Live — Perubahan (UX & Programming Review)
 
+## v6.3 — Perbaikan alur keranjang & checkout yang "tidak sinkron" (2026-07-01)
+
+**Root cause yang ditemukan (via code review + simulasi Playwright):**
+
+1. **Dua sistem keranjang yang tidak nyambung.** Saat Pak Civo (AI) memutuskan sendiri untuk checkout, backend (`api/chat.js`) langsung membuat link checkout Shopify dari command `<<SHOPIFY_CART|...>>` TANPA pernah menyentuh `cartLines` yang dipakai badge/keranjang/tombol `+Keranjang`. Hasilnya: badge keranjang salah, dan kartu konfirmasi "Ya/Batal" yang konsisten hanya muncul untuk add via tombol, tidak untuk add via chat AI — persis gejala "jawaban tidak sinkron" dan alur checkout berantakan.
+   - **Fix:** `api/chat.js` sekarang hanya melaporkan `cartCommands` (variant + qty), tidak lagi membuat link sendiri. Frontend menyambungkannya ke pipeline konfirmasi yang SAMA dengan tombol `+Keranjang` (`renderPendingCartConfirmation`), jadi hanya ada SATU sumber kebenaran untuk isi keranjang, satu gaya kartu konfirmasi, dan checkout selalu dibangun dari total isi keranjang terkini (bukan cuma item terakhir).
+2. **Kode mati yang menyesatkan.** Frontend masih mem-parsing format marker lama `<<CART:ADD:pN:qty>>` yang sudah tidak pernah dikirim backend (backend pakai `<<SHOPIFY_CART|variantId|qty>>`). Blok ini 100% tidak pernah jalan — dihapus, diganti logika `cartCommands` yang nyata.
+3. **"Sudah masuk keranjang" padahal tidak.** 3 dari 5 produk showroom (Babi Giling, Paikut Sop, Kapsim) baru dapat `variantId` setelah hidrasi Shopify selesai (async, ada jeda). Kalau customer buru-buru konfirmasi SEBELUM hidrasi selesai, baris keranjang itu di-drop diam-diam oleh `cloneCartLines()` (karena variantId kosong), tapi pesannya tetap bilang "sudah masuk keranjang" — checkout jadi kehilangan item itu.
+   - **Fix:** `ensureVariantForProduct()` — sebelum benar-benar mengeksekusi add, coba ambil data variant terbaru dari Shopify sekali lagi. Kalau masih gagal, kasih pesan jujur ("lagi disiapkan, coba lagi ya") — bukan klaim sukses palsu. Sudah diuji dengan simulasi race-condition (klik konfirmasi persis saat hidrasi belum selesai) → hasilnya benar, tidak ada lagi silent-drop.
+4. **FAQ instan pakai substring match longgar** (`includes()` tanpa batas kata) → berpotensi salah nyantol ke jawaban FAQ yang tidak relevan. Diganti whole-word match.
+
+**Upsell hook — kenapa jarang muncul:**
+Sebelumnya, hook upsell HANYA muncul kalau jawaban datang dari Gemini (AI). Tapi kalimat pembelian paling umum ("tambahkan", "mau", "beli", "pesan", "order") justru langsung ditangkap oleh deteksi lokal di frontend dan TIDAK PERNAH sampai ke AI — jadi upsell hook nyaris tidak pernah tampil di momen paling penting: setelah customer baru saja menambah produk.
+
+**Fix:** upsell hook sekarang dipicu langsung dari sisi client, setelah SETIAP add-to-cart berhasil — lewat tombol, teks chat, maupun command AI. Saran silang dibatasi ke 5 produk showroom (closed loop) supaya klik "+ Tambah" selalu instan berhasil tanpa perlu round-trip AI lagi.
+
+File yang diubah: `api/chat.js`, `public/index.html`.
+
+---
+
+# Pak Civo Live — Perubahan (UX & Programming Review)
+
 File yang diubah: **`public/index.html`** (hanya 1 file).
 Backend (`api/*`) tidak disentuh agar tidak ada regresi yang tidak bisa diuji.
 
