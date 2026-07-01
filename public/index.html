@@ -314,6 +314,7 @@ button, input { font-family: inherit; }
 .product-photo{display:block;object-fit:cover;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);}
 .pc-emoji .product-photo{width:38px;height:38px;border-radius:11px;box-shadow:0 4px 14px rgba(0,0,0,0.28);}
 .product-fallback{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);border:1px solid rgba(200,133,74,0.16);font-size:18px;}
+.product-loading{font-size:9px!important;line-height:1.15;text-align:center;color:rgba(245,237,208,.76);padding:6px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(200,133,74,.12));}
 .ps-icon{grid-area:icon;width:32px;height:32px;border-radius:10px;object-fit:cover;display:block;flex-shrink:0;}
 .qchip{display:inline-flex;align-items:center;gap:6px;}
 .qicon{width:16px;height:16px;border-radius:5px;object-fit:cover;display:block;flex-shrink:0;}
@@ -868,7 +869,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.6-shopify-images-locked";
+const APP_VERSION = "v6.0.7-shopify-showroom-images";
 console.log("Tokopakcivo", APP_VERSION);
 const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
@@ -959,6 +960,8 @@ const PRODUCTS = [
 ];
 let curProd=0,cartCount=0,isLoading=false,cartItems=[],cartLines=[],latestCheckoutUrl="";
 let messages=[{role:"assistant",content:"Halo Kak! Saya Pak Civo siap bantu pilihkan daging terbaik!"}];
+let shopifyCatalogReady=false;
+let productHydrationStarted=false;
 
 const LEAD_STORAGE_KEY = "pakcivoLeadV1";
 const CART_STORAGE_KEY = "pakcivoCartV2";
@@ -1311,7 +1314,10 @@ function productIconHtml(p, cls){
     return `<img class="${klass}" src="${escapeHtml(image)}" alt="${escapeHtml(p?.name||"Produk")}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
   }
   const fallbackCls=cls==="ps-icon" ? "ps-icon product-fallback" : "product-fallback";
-  return `<span class="${fallbackCls}" aria-hidden="true">${escapeHtml(p?.emoji||"🥩")}</span>`;
+  if(!shopifyCatalogReady){
+    return `<span class="${fallbackCls} product-loading" aria-label="Memuat foto Shopify">Foto Shopify</span>`;
+  }
+  return `<span class="${fallbackCls} product-loading" aria-label="Foto Shopify belum tersedia">Foto belum ada</span>`;
 }
 function productFromShopifyProduct(prod){
   const variants=Array.isArray(prod?.variants)?prod.variants:[];
@@ -1527,7 +1533,8 @@ function isProductIntent(text){
 }
 function revealProducts(reason){
   document.body.classList.add("show-products");
-  trackEvent("products_revealed", {reason: reason||"unknown"});
+  if(!productHydrationStarted) hydrateProductsFromShopify();
+  trackEvent("products_revealed", {reason: reason||"unknown", shopifyReady:shopifyCatalogReady});
 }
 function hideProducts(){
   document.body.classList.remove("show-products");
@@ -1572,13 +1579,10 @@ async function addProductByIndex(event, idx){
 }
 
 async function fetchShopifyProductsForQuery(q){
-  const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q||""),{cache:"no-store"});
+  const res=await fetch("/api/shopify-products?q="+encodeURIComponent(q||"")+"&t="+Date.now(),{cache:"no-store"});
   if(!res.ok){
-    // Previously this failed silently, so a bad Shopify Storefront token/scope,
-    // GraphQL error, or 500 would just render as emoji fallback with zero trace
-    // in the console. Now it's logged so mismatched product photos are debuggable.
     const bodyText=await res.text().catch(()=>"");
-    console.warn("[PakCivo] /api/shopify-products failed", {query:q, status:res.status, body:bodyText.slice(0,300)});
+    console.warn("[PakCivo] /api/shopify-products failed", {query:q, status:res.status, body:bodyText.slice(0,500)});
     return [];
   }
   const data=await res.json();
@@ -1587,15 +1591,75 @@ async function fetchShopifyProductsForQuery(q){
   }
   return data.ok && Array.isArray(data.products) ? data.products : [];
 }
+async function fetchShopifyShowroomProducts(){
+  const res=await fetch("/api/shopify-products?showroom=1&t="+Date.now(),{cache:"no-store"});
+  if(!res.ok){
+    const bodyText=await res.text().catch(()=>"");
+    console.warn("[PakCivo] /api/shopify-products showroom failed", {status:res.status, body:bodyText.slice(0,500)});
+    return [];
+  }
+  const data=await res.json();
+  if(!data.ok){
+    console.warn("[PakCivo] /api/shopify-products showroom ok:false", data);
+    return [];
+  }
+  return Array.isArray(data.products) ? data.products : [];
+}
+function applyShopifyShowroomProducts(products){
+  const bySlot=new Map();
+  (Array.isArray(products)?products:[]).forEach(raw=>{
+    if(raw?.slotKey) bySlot.set(String(raw.slotKey), raw);
+  });
+
+  let foundCount=0;
+  const next=PRODUCTS.map((base,i)=>{
+    let raw=bySlot.get(base.id);
+    if(!raw){
+      // Backward-compatible fallback when an older API does not send slotKey.
+      let best=null;
+      let bestScore=-999;
+      for(const candidate of (Array.isArray(products)?products:[])){
+        const mapped=productFromShopifyProduct(candidate);
+        if(!mapped) continue;
+        const score=scoreShopifyProductForBase(candidate, mapped, base, i);
+        if(score>bestScore){ bestScore=score; best={mapped, score}; }
+      }
+      if(best && bestScore>=35){ foundCount++; return mergeBestSellerProduct(base, best.mapped); }
+      return base;
+    }
+    const mapped=productFromShopifyProduct(raw);
+    if(!mapped) return base;
+    foundCount++;
+    return mergeBestSellerProduct(base, mapped);
+  });
+
+  if(foundCount){
+    PRODUCTS.splice(0, PRODUCTS.length, ...next);
+    curProd=0;
+    shopifyCatalogReady=true;
+    document.body.classList.remove("product-images-loading");
+    document.body.classList.add("product-images-ready");
+    refreshProductStrip();
+    setProduct(0);
+    trackEvent("products_loaded", {count:foundCount, shown:PRODUCTS.length, source:"shopify_showroom_locked"});
+    return true;
+  }
+  return false;
+}
 async function hydrateProductsFromShopify(){
+  if(productHydrationStarted) return false;
+  productHydrationStarted=true;
+  document.body.classList.add("product-images-loading");
   try{
+    // Preferred path: one server-side showroom call that returns the exact 5 cards
+    // with their Shopify images. This avoids mismatches from five independent
+    // client-side searches and makes image debugging much clearer.
+    const showroom=await fetchShopifyShowroomProducts();
+    if(applyShopifyShowroomProducts(showroom)) return true;
+
     const slots=new Array(PRODUCTS.length).fill(null);
     const all=[];
 
-    // Hydrate each showroom slot from Shopify independently and IN PARALLEL.
-    // Previously these 5 requests ran sequentially (await inside a for-loop), so the
-    // product strip only finished loading after the slowest 5 round-trips stacked up.
-    // Firing them together cuts perceived load time to a single round-trip.
     await Promise.all(PRODUCTS.map(async (base, i)=>{
       const primaryQuery=(Array.isArray(base.shopifyQueries) && base.shopifyQueries[0]) || base.query || base.name;
       try{
@@ -1620,23 +1684,38 @@ async function hydrateProductsFromShopify(){
       const next=PRODUCTS.map((base,i)=>slots[i] ? mergeBestSellerProduct(base, slots[i].mapped) : base);
       PRODUCTS.splice(0, PRODUCTS.length, ...next);
       curProd=0;
+      shopifyCatalogReady=true;
+      document.body.classList.remove("product-images-loading");
+      document.body.classList.add("product-images-ready");
       refreshProductStrip();
       setProduct(0);
       trackEvent("products_loaded", {count:foundCount, shown:PRODUCTS.length, source:"shopify_slot_images_locked"});
       return true;
     }
 
-    // Last fallback: use older broad hydration only if slot hydration finds nothing.
     const queries=[...new Set(PRODUCTS.flatMap(p=>Array.isArray(p.shopifyQueries)&&p.shopifyQueries.length?p.shopifyQueries:[p.query]).filter(Boolean))];
     for(const q of queries){
       try{ all.push(...await fetchShopifyProductsForQuery(q)); }
       catch(e){ console.warn("Best seller product query skipped", q, e); }
     }
-    applyShopifyProducts(mergeClientProducts(all),{preferFirst:true,source:"best_seller_catalog_fallback"});
+    const applied=applyShopifyProducts(mergeClientProducts(all),{preferFirst:true,source:"best_seller_catalog_fallback"});
+    if(applied){
+      shopifyCatalogReady=true;
+      document.body.classList.remove("product-images-loading");
+      document.body.classList.add("product-images-ready");
+      return true;
+    }
   }catch(e){
     console.warn("Shopify product hydration skipped", e);
   }
+  shopifyCatalogReady=true;
+  document.body.classList.remove("product-images-loading");
+  document.body.classList.add("product-images-failed");
+  refreshProductStrip();
+  setProduct(curProd);
+  return false;
 }
+
 
 // ── TALKING STATE ──
 function setTalking(on){
