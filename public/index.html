@@ -869,7 +869,7 @@ body.lead-ready .lead-reset-floating { display: inline-flex; }
 
 </div>
 <script>
-const APP_VERSION = "v6.0.7-shopify-showroom-images";
+const APP_VERSION = "v6.0.8-shopify-public-images";
 console.log("Tokopakcivo", APP_VERSION);
 const SHOPIFY_STORE_BASE = "https://civo-meat.myshopify.com";
 const ICONS = {
@@ -1283,18 +1283,20 @@ function uiIconHtml(src, alt, cls){
 function imageUrlFromAny(value){
   if(!value) return "";
   if(typeof value === "string"){
-    if(/^https?:\/\//i.test(value)) return value;
-    if(/^\/\//.test(value)) return "https:" + value;
+    const clean=value.trim();
+    if(/^https?:\/\//i.test(clean)) return clean;
+    if(/^\/\//.test(clean)) return "https:" + clean;
+    if(/^\//.test(clean)) return SHOPIFY_STORE_BASE + clean;
     return "";
   }
   if(typeof value === "object"){
-    return imageUrlFromAny(value.url || value.src || value.image || value.originalSrc);
+    return imageUrlFromAny(value.url || value.src || value.image || value.originalSrc || value.transformedSrc || value.secure_url || value.featured_image || value.featuredImage || value.image_url);
   }
   return "";
 }
 function productImageSrc(p){
   if(!p) return "";
-  const direct = imageUrlFromAny(p.image || p.shopifyImage || p.featuredImage || p.imageUrl);
+  const direct = imageUrlFromAny(p.image || p.shopifyImage || p.featuredImage || p.featured_image || p.featuredImageUrl || p.imageUrl || p.src || p.originalSrc || p.url);
   if(direct) return direct;
   if(Array.isArray(p.images)){
     for(const img of p.images){
@@ -1302,10 +1304,16 @@ function productImageSrc(p){
       if(url) return url;
     }
   }
+  if(Array.isArray(p.variants)){
+    for(const variant of p.variants){
+      const url=imageUrlFromAny(variant?.image || variant?.featuredImage || variant?.featured_image || variant?.imageUrl || variant?.image_url);
+      if(url) return url;
+    }
+  }
   return "";
 }
 function shopifyVariantImage(prod, variant){
-  return imageUrlFromAny(variant?.image || variant?.featuredImage || variant?.imageUrl) || productImageSrc(prod);
+  return imageUrlFromAny(variant?.image || variant?.featuredImage || variant?.featured_image || variant?.imageUrl || variant?.image_url) || productImageSrc(prod);
 }
 function productIconHtml(p, cls){
   const image=productImageSrc(p);
